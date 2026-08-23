@@ -7,10 +7,10 @@ export type AdminOverview = {
   approvedAnalyses: number;
   pendingAnalyses: number;
   rejectedAnalyses: number;
-  pendingJobs: number;
+  queuedJobs: number;
   runningJobs: number;
   failedJobs: number;
-  completedJobs: number;
+  succeededJobs: number;
   feedbackItems: number;
 };
 
@@ -27,12 +27,12 @@ export async function getAdminOverview(): Promise<AdminOverview | null> {
       (SELECT count(*) FROM repository_snapshots) AS snapshots,
       (SELECT count(DISTINCT repository_id) FROM repository_scores WHERE score_version = 'health-v1') AS scored_repositories,
       (SELECT count(*) FROM ai_analyses WHERE analysis_type = 'repository_enrichment' AND review_status = 'approved') AS approved_analyses,
-      (SELECT count(*) FROM ai_analyses WHERE analysis_type = 'repository_enrichment' AND review_status = 'pending') AS pending_analyses,
+      (SELECT count(*) FROM ai_analyses WHERE analysis_type = 'repository_enrichment' AND review_status IN ('pending','human_review')) AS pending_analyses,
       (SELECT count(*) FROM ai_analyses WHERE analysis_type = 'repository_enrichment' AND review_status = 'rejected') AS rejected_analyses,
-      (SELECT count(*) FROM ingestion_jobs WHERE status = 'pending') AS pending_jobs,
+      (SELECT count(*) FROM ingestion_jobs WHERE status IN ('queued','retry')) AS queued_jobs,
       (SELECT count(*) FROM ingestion_jobs WHERE status = 'running') AS running_jobs,
-      (SELECT count(*) FROM ingestion_jobs WHERE status = 'failed') AS failed_jobs,
-      (SELECT count(*) FROM ingestion_jobs WHERE status = 'completed') AS completed_jobs,
+      (SELECT count(*) FROM ingestion_jobs WHERE status IN ('failed','dead')) AS failed_jobs,
+      (SELECT count(*) FROM ingestion_jobs WHERE status = 'succeeded') AS succeeded_jobs,
       (SELECT count(*) FROM feedback) AS feedback_items`,
   );
   const row = rows[0];
@@ -44,10 +44,10 @@ export async function getAdminOverview(): Promise<AdminOverview | null> {
     approvedAnalyses: numberValue(row.approved_analyses),
     pendingAnalyses: numberValue(row.pending_analyses),
     rejectedAnalyses: numberValue(row.rejected_analyses),
-    pendingJobs: numberValue(row.pending_jobs),
+    queuedJobs: numberValue(row.queued_jobs),
     runningJobs: numberValue(row.running_jobs),
     failedJobs: numberValue(row.failed_jobs),
-    completedJobs: numberValue(row.completed_jobs),
+    succeededJobs: numberValue(row.succeeded_jobs),
     feedbackItems: numberValue(row.feedback_items),
   };
 }
@@ -57,13 +57,14 @@ export async function listRecentFailedJobs(limit = 20) {
   return query<{
     id: string;
     job_type: string;
+    status: string;
     error: string | null;
     attempt_count: number;
     updated_at: string;
   }>(
-    `SELECT id, job_type, error, attempt_count, updated_at
+    `SELECT id, job_type, status, error, attempt_count, updated_at
      FROM ingestion_jobs
-     WHERE status = 'failed'
+     WHERE status IN ('failed','dead')
      ORDER BY updated_at DESC
      LIMIT $1`,
     [Math.max(1, Math.min(limit, 100))],

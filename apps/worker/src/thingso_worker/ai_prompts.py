@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from .ai_models import RepositoryAnalysis
 from .evidence import EvidenceBundle
+from .ai_models import RepositoryAnalysis
 
 
 ANALYSIS_PROMPT_VERSION = "repo-analysis-prompt-v1"

@@ -216,11 +216,13 @@ class AIStore:
                           from_repository_id, to_repository_id, relation_type, source_type,
                           confidence, analysis_id, reviewed
                         ) VALUES (%s,%s,%s,'ai',%s,%s,true)
-                        ON CONFLICT (from_repository_id, to_repository_id, relation_type) DO UPDATE SET
-                          source_type = 'ai',
+                        ON CONFLICT (
+                          from_repository_id, to_repository_id, relation_type, source_type
+                        ) DO UPDATE SET
                           confidence = EXCLUDED.confidence,
                           analysis_id = EXCLUDED.analysis_id,
                           reviewed = true
+                        RETURNING 1
                         """,
                         (
                             bundle.repository_id,
@@ -230,7 +232,8 @@ class AIStore:
                             analysis_id,
                         ),
                     )
-                    relation_links += 1
+                    if cur.fetchone():
+                        relation_links += 1
 
                 for idea in analysis.build_ideas:
                     cur.execute(

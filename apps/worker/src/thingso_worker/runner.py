@@ -10,6 +10,7 @@ from .github_client import GitHubClient
 from .jobs import JobQueue
 from .llm_client import OpenAICompatibleClient
 from .pipeline import RepositoryIngestor
+from .scoring import HealthScoreStore
 from .settings import Settings
 
 
@@ -20,6 +21,7 @@ class WorkerRunner:
         self.queue = JobQueue(settings.database_url, worker_id=socket.gethostname())
         self.client = GitHubClient(token=settings.github_token, api_version=settings.github_api_version)
         self.ingestor = RepositoryIngestor(client=self.client, store=self.store)
+        self.score_store = HealthScoreStore(settings.database_url)
         self._ai_client: OpenAICompatibleClient | None = None
         self._enricher: RepositoryEnricher | None = None
 
@@ -66,6 +68,9 @@ class WorkerRunner:
 
             if job.job_type == "ingest_repository":
                 self.ingestor.ingest(full_name)
+                self.score_store.calculate_and_persist(full_name)
+            elif job.job_type == "score_repository":
+                self.score_store.calculate_and_persist(full_name)
             elif job.job_type == "enrich_repository":
                 self._get_enricher().enrich(full_name)
             else:

@@ -12,6 +12,7 @@ from .llm_client import OpenAICompatibleClient
 from .pipeline import RepositoryIngestor
 from .scoring import HealthScoreStore
 from .settings import Settings
+from .taxonomy import assign_editorial_capability
 
 
 class WorkerRunner:
@@ -68,6 +69,9 @@ class WorkerRunner:
 
             if job.job_type == "ingest_repository":
                 self.ingestor.ingest(full_name)
+                category = str(job.payload.get("category") or "").strip()
+                if category:
+                    assign_editorial_capability(self.settings.database_url, full_name, category)
                 self.score_store.calculate_and_persist(full_name)
             elif job.job_type == "score_repository":
                 self.score_store.calculate_and_persist(full_name)

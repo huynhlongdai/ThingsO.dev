@@ -2,9 +2,10 @@ import Link from "next/link";
 import { IntentSearch } from "@/components/intent-search";
 import { RepositoryCard } from "@/components/repository-card";
 import { SiteHeader } from "@/components/site-header";
-import { demoRepositories } from "@/lib/demo-repositories";
+import { listRepositories, listUseCases } from "@/lib/data";
+import { toRepositoryCard } from "@/lib/view-models";
 
-const useCases = [
+const fallbackSearches = [
   "AI browser agent",
   "Automate content workflows",
   "Extract structured web data",
@@ -13,7 +14,12 @@ const useCases = [
   "Build an internal developer tool",
 ];
 
-export default function HomePage() {
+export const revalidate = 300;
+
+export default async function HomePage() {
+  const [repositories, useCases] = await Promise.all([listRepositories(6), listUseCases()]);
+  const searches = useCases.length ? useCases.slice(0, 6).map((item) => item.title) : fallbackSearches;
+
   return (
     <main>
       <div className="page-shell">
@@ -26,7 +32,7 @@ export default function HomePage() {
           </p>
           <IntentSearch />
           <div className="intent-chips" aria-label="Example searches">
-            {useCases.map((item) => (
+            {searches.map((item) => (
               <Link key={item} href={`/search?q=${encodeURIComponent(item)}`}>{item}</Link>
             ))}
           </div>
@@ -51,15 +57,21 @@ export default function HomePage() {
         <section className="section-block" aria-labelledby="repos-heading">
           <div className="section-heading section-heading--compact">
             <div>
-              <p className="eyebrow">Preview dataset</p>
-              <h2 id="repos-heading">Example repository intelligence</h2>
+              <p className="eyebrow">Source-backed dataset</p>
+              <h2 id="repos-heading">Repository intelligence</h2>
             </div>
             <Link className="text-link" href="/discover">Explore discovery →</Link>
           </div>
-          <div className="repo-grid">
-            {demoRepositories.map((repo) => <RepositoryCard key={`${repo.owner}/${repo.name}`} repo={repo} />)}
-          </div>
-          <p className="demo-note">Preview values are UI fixtures only. Public repository pages will use source-derived facts and reviewed analysis from the data pipeline.</p>
+          {repositories.length ? (
+            <div className="repo-grid">
+              {repositories.map((repo) => <RepositoryCard key={repo.id} repo={toRepositoryCard(repo)} />)}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <strong>Dataset is ready for ingestion.</strong>
+              <p>The UI does not substitute demo facts when the database has not been populated.</p>
+            </div>
+          )}
         </section>
       </div>
     </main>

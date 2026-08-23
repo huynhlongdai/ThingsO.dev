@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-thingso}
+      POSTGRES_USER: ${POSTGRES_USER:-thingso}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thingso} -d ${POSTGRES_DB:-thingso}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - thingso_postgres:/var/lib/postgresql/data
+    networks: [thingso]
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://thingso.dev}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thingso}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-thingso}
+      ADMIN_AUTH_SECRET: ${ADMIN_AUTH_SECRET:-}
+      ANALYTICS_WRITE_KEY: ${ANALYTICS_WRITE_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose: ["3000"]
+    networks: [thingso]
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-thingso}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-thingso}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_API_VERSION: ${GITHUB_API_VERSION:-2022-11-28}
+      AI_PROVIDER: ${AI_PROVIDER:-openai-compatible}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_MODEL_ENRICH: ${AI_MODEL_ENRICH:-}
+      AI_MODEL_REVIEW: ${AI_MODEL_REVIEW:-}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      JOB_POLL_INTERVAL_SECONDS: ${JOB_POLL_INTERVAL_SECONDS:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [thingso]
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+    networks: [thingso]
+
+networks:
+  thingso:
+
+volumes:
+  thingso_postgres:
+  caddy_data:
+  caddy_config:

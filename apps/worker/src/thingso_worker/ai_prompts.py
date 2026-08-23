@@ -5,7 +5,6 @@ import json
 from .ai_models import RepositoryAnalysis
 from .evidence import EvidenceBundle
 
-
 ANALYSIS_PROMPT_VERSION = "repo-analysis-prompt-v1"
 REVIEW_PROMPT_VERSION = "repo-review-prompt-v1"
 

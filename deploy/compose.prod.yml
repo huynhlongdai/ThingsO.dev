@@ -1,3 +1,15 @@
+x-worker-env: &worker-env
+  DATABASE_URL: postgresql://${POSTGRES_USER:-thingso}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-thingso}
+  GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+  GITHUB_API_VERSION: ${GITHUB_API_VERSION:-2022-11-28}
+  AI_PROVIDER: ${AI_PROVIDER:-openai-compatible}
+  AI_API_KEY: ${AI_API_KEY:-}
+  AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+  AI_MODEL_ENRICH: ${AI_MODEL_ENRICH:-}
+  AI_MODEL_REVIEW: ${AI_MODEL_REVIEW:-}
+  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+  JOB_POLL_INTERVAL_SECONDS: ${JOB_POLL_INTERVAL_SECONDS:-5}
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -15,6 +27,18 @@ services:
       - thingso_postgres:/var/lib/postgresql/data
     networks: [thingso]
 
+  migrate:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.worker
+    restart: "no"
+    environment: *worker-env
+    command: ["sh", "-c", "uv run --project apps/worker python -m thingso_worker migrate && uv run --project apps/worker python -m thingso_worker taxonomy-seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [thingso]
+
   web:
     build:
       context: ..
@@ -28,8 +52,8 @@ services:
       ANALYTICS_WRITE_KEY: ${ANALYTICS_WRITE_KEY:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     expose: ["3000"]
     networks: [thingso]
 
@@ -38,20 +62,10 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.worker
     restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-thingso}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-thingso}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      GITHUB_API_VERSION: ${GITHUB_API_VERSION:-2022-11-28}
-      AI_PROVIDER: ${AI_PROVIDER:-openai-compatible}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
-      AI_MODEL_ENRICH: ${AI_MODEL_ENRICH:-}
-      AI_MODEL_REVIEW: ${AI_MODEL_REVIEW:-}
-      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
-      JOB_POLL_INTERVAL_SECONDS: ${JOB_POLL_INTERVAL_SECONDS:-5}
+    environment: *worker-env
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks: [thingso]
 
   caddy:
@@ -65,7 +79,9 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on: [web]
+    depends_on:
+      web:
+        condition: service_started
     networks: [thingso]
 
 networks:

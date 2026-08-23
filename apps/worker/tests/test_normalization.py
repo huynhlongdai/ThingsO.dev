@@ -1,4 +1,8 @@
-from thingso_worker.normalization import canonical_payload_hash, normalize_languages, normalize_repository
+from thingso_worker.normalization import (
+    canonical_payload_hash,
+    normalize_languages,
+    normalize_repository,
+)
 
 
 def repository_fixture() -> dict:

@@ -1,1 +1,14 @@
-{"name":"@thingso/scoring","version":"0.1.0","private":true,"scripts":{"test":"node --test tests/*.test.mjs"}}
+{
+  "name": "@thingso/scoring",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  }
+}

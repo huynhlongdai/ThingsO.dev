@@ -1,0 +1,23 @@
+{
+  "version": "gold-v1",
+  "cases": [
+    {
+      "full_name": "browser-use/browser-use",
+      "expected_capability_any": ["browser-automation", "ai-agent"],
+      "forbidden_claims": ["cryptocurrency exchange", "image generation"],
+      "notes": "Browser/agent tooling should not drift into unrelated generative-media claims."
+    },
+    {
+      "full_name": "n8n-io/n8n",
+      "expected_capability_any": ["workflow-automation"],
+      "forbidden_claims": ["operating system kernel", "database engine"],
+      "notes": "Workflow automation identity should dominate unrelated infrastructure guesses."
+    },
+    {
+      "full_name": "ollama/ollama",
+      "expected_capability_any": ["llm-serving", "self-hosting"],
+      "forbidden_claims": ["browser extension", "video editor"],
+      "notes": "Local model-serving evidence should not be expanded into unrelated product categories."
+    }
+  ]
+}

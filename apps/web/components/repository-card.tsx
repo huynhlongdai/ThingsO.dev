@@ -6,10 +6,12 @@ export type RepositoryCardData = {
   owner: string;
   name: string;
   summary: string;
-  healthScore: number;
-  stars: string;
-  language: string;
-  fitReason: string;
+  summarySource?: "source" | "ai_inference";
+  healthScore: number | null;
+  stars: string | number;
+  language: string | null;
+  licenseSpdx?: string | null;
+  fitReason?: string | null;
   tags: string[];
 };
 
@@ -23,14 +25,20 @@ export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
         </div>
         <HealthScore score={repo.healthScore} />
       </div>
-      <p className="repo-card__summary">{repo.summary}</p>
-      <div className="repo-card__fit">
-        <ProvenanceBadge kind="ai_inference" />
-        <span>{repo.fitReason}</span>
+      <div className="repo-card__summary-block">
+        <ProvenanceBadge kind={repo.summarySource === "ai_inference" ? "ai_inference" : "source_fact"} />
+        <p className="repo-card__summary">{repo.summary}</p>
       </div>
+      {repo.fitReason ? (
+        <div className="repo-card__fit">
+          <ProvenanceBadge kind="ai_inference" />
+          <span>{repo.fitReason}</span>
+        </div>
+      ) : null}
       <div className="repo-card__meta" aria-label="Repository metadata">
         <span>★ {repo.stars}</span>
-        <span>{repo.language}</span>
+        {repo.language ? <span>{repo.language}</span> : null}
+        {repo.licenseSpdx ? <span>{repo.licenseSpdx}</span> : null}
         {repo.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}
       </div>
     </article>

@@ -1,11 +1,19 @@
 import Link from "next/link";
 import { RepositoryCard } from "@/components/repository-card";
 import { SiteHeader } from "@/components/site-header";
-import { demoRepositories } from "@/lib/demo-repositories";
+import { listRepositories, listTaxonomyTerms, listUseCases } from "@/lib/data";
+import { toRepositoryCard } from "@/lib/view-models";
 
 export const metadata = { title: "Discover" };
+export const revalidate = 300;
 
-export default function DiscoverPage() {
+export default async function DiscoverPage() {
+  const [categories, useCases, repositories] = await Promise.all([
+    listTaxonomyTerms("capability"),
+    listUseCases(),
+    listRepositories(24),
+  ]);
+
   return (
     <main>
       <div className="page-shell">
@@ -13,13 +21,34 @@ export default function DiscoverPage() {
         <section className="content-page">
           <p className="eyebrow">Curated discovery</p>
           <h1>Explore software by capability and use case.</h1>
+          <p className="lede">
+            Facts come from captured repository snapshots. AI classifications appear only after review.
+          </p>
           <div className="category-list">
-            {["AI agents", "Browser automation", "Workflow automation", "Web scraping", "Video generation", "Self-hosting"].map((label) => (
-              <Link key={label} href={`/search?q=${encodeURIComponent(label)}`}>{label}</Link>
+            {categories.slice(0, 18).map((category) => (
+              <Link key={category.slug} href={`/categories/${category.slug}`}>
+                {category.label} · {category.repositoryCount}
+              </Link>
             ))}
           </div>
+          {useCases.length ? (
+            <div className="category-list">
+              {useCases.slice(0, 10).map((useCase) => (
+                <Link key={useCase.slug} href={`/use-cases/${useCase.slug}`}>
+                  {useCase.title} · {useCase.repositoryCount}
+                </Link>
+              ))}
+            </div>
+          ) : null}
           <div className="repo-grid">
-            {demoRepositories.map((repo) => <RepositoryCard key={`${repo.owner}/${repo.name}`} repo={repo} />)}
+            {repositories.length ? repositories.map((repo) => (
+              <RepositoryCard key={repo.id} repo={toRepositoryCard(repo)} />
+            )) : (
+              <div className="empty-state">
+                <strong>No repository snapshots are available yet.</strong>
+                <p>Run the seed ingestion worker to populate source-backed discovery.</p>
+              </div>
+            )}
           </div>
         </section>
       </div>

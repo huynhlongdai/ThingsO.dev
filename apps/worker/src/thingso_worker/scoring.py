@@ -3,11 +3,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from uuid import UUID
 
 import psycopg
 from psycopg.rows import dict_row
-
 
 HEALTH_SCORE_VERSION = "health-v1"
 
@@ -66,7 +64,10 @@ def calculate_health_score(facts: dict, *, now: datetime | None = None) -> Healt
     current = now or datetime.now(timezone.utc)
     archived = bool(facts.get("is_archived"))
     maintenance = 0 if archived else _recency_score(_days_between(current, facts.get("pushed_at_source")))
-    adoption = _clamp(_log_score(facts.get("stars"), 100_000) * 0.7 + _log_score(facts.get("forks"), 20_000) * 0.3)
+    adoption = _clamp(
+        _log_score(facts.get("stars"), 100_000) * 0.7
+        + _log_score(facts.get("forks"), 20_000) * 0.3
+    )
     community = _clamp(
         _log_score(facts.get("contributor_count"), 200) * 0.5
         + _log_score(facts.get("subscribers"), 2_000) * 0.2
@@ -82,7 +83,9 @@ def calculate_health_score(facts: dict, *, now: datetime | None = None) -> Healt
         + _recency_score(_days_between(current, facts.get("latest_release_at"))) * 0.6
     )
     license_value = str(facts.get("license_spdx") or "").strip().upper()
-    license_clarity = 0 if not license_value else (30 if license_value in {"NOASSERTION", "OTHER"} else 100)
+    license_clarity = 0 if not license_value else (
+        30 if license_value in {"NOASSERTION", "OTHER"} else 100
+    )
     age_days = _days_between(current, facts.get("created_at_source"))
     maturity = 0 if age_days is None else _clamp(min(age_days, 1095) / 1095 * 100)
     metadata = _clamp(
@@ -117,7 +120,7 @@ class HealthScoreStore:
     def __init__(self, database_url: str) -> None:
         self.database_url = database_url
 
-    def calculate_and_persist(self, full_name: str) -> UUID:
+    def calculate_and_persist(self, full_name: str) -> HealthScore:
         with psycopg.connect(self.database_url, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -146,8 +149,9 @@ class HealthScoreStore:
                     INSERT INTO repository_scores (
                       repository_id, snapshot_id, score_version, total_score,
                       maintenance_score, adoption_score, community_score, documentation_score,
-                      operations_score, license_clarity_score, maturity_score, metadata_score
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                      operations_score, license_clarity_score, maturity_score, metadata_score,
+                      explanation_json
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'{}'::jsonb)
                     ON CONFLICT (repository_id, snapshot_id, score_version) DO UPDATE SET
                       total_score = EXCLUDED.total_score,
                       maintenance_score = EXCLUDED.maintenance_score,
@@ -158,16 +162,23 @@ class HealthScoreStore:
                       license_clarity_score = EXCLUDED.license_clarity_score,
                       maturity_score = EXCLUDED.maturity_score,
                       metadata_score = EXCLUDED.metadata_score,
-                      calculated_at = now()
-                    RETURNING id
+                      explanation_json = EXCLUDED.explanation_json,
+                      created_at = now()
                     """,
                     (
-                        facts["repository_id"], facts["snapshot_id"], HEALTH_SCORE_VERSION,
-                        score.total, score.maintenance, score.adoption, score.community,
-                        score.documentation, score.operations, score.license_clarity,
-                        score.maturity, score.metadata,
+                        facts["repository_id"],
+                        facts["snapshot_id"],
+                        HEALTH_SCORE_VERSION,
+                        score.total,
+                        score.maintenance,
+                        score.adoption,
+                        score.community,
+                        score.documentation,
+                        score.operations,
+                        score.license_clarity,
+                        score.maturity,
+                        score.metadata,
                     ),
                 )
-                score_id = cur.fetchone()["id"]
             conn.commit()
-        return score_id
+        return score

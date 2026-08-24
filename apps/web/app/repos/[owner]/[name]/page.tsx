@@ -46,7 +46,7 @@ export default async function RepositoryPage({
   const { owner, name } = await params;
   const [repo, intelligence] = await Promise.all([
     getRepository(owner, name),
-    getRepositoryIntelligence(owner, name),
+    getRepositoryIntelligence(owner, name, { allowStale: true }),
   ]);
   if (!repo) notFound();
 

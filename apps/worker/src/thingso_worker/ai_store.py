@@ -117,7 +117,11 @@ class AIStore:
         bundle: EvidenceBundle,
         analysis_id: UUID,
         analysis: RepositoryAnalysis,
+        source_type: str = "ai",
     ) -> PublishedInferenceCounts:
+        if source_type not in {"ai", "editorial"}:
+            raise ValueError("Inference source_type must be ai or editorial")
+
         taxonomy_links = 0
         use_case_links = 0
         relation_links = 0
@@ -150,12 +154,12 @@ class AIStore:
                         """
                         INSERT INTO repository_taxonomy (
                           repository_id, term_id, source_type, confidence, analysis_id
-                        ) VALUES (%s,%s,'ai',%s,%s)
+                        ) VALUES (%s,%s,%s,%s,%s)
                         ON CONFLICT (repository_id, term_id, source_type) DO UPDATE SET
                           confidence = EXCLUDED.confidence,
                           analysis_id = EXCLUDED.analysis_id
                         """,
-                        (bundle.repository_id, term[0], confidence, analysis_id),
+                        (bundle.repository_id, term[0], source_type, confidence, analysis_id),
                     )
                     taxonomy_links += 1
 
@@ -168,24 +172,25 @@ class AIStore:
                     if row:
                         use_case_id = row[0]
                     else:
+                        description = (
+                            "Editorially proposed use case pending taxonomy review."
+                            if source_type == "editorial"
+                            else "AI-proposed use case pending editorial taxonomy review."
+                        )
                         cur.execute(
                             """
                             INSERT INTO use_cases (slug, title, description, status)
                             VALUES (%s,%s,%s,'proposed')
                             RETURNING id
                             """,
-                            (
-                                inference.slug,
-                                _humanize_slug(inference.slug),
-                                "AI-proposed use case pending editorial taxonomy review.",
-                            ),
+                            (inference.slug, _humanize_slug(inference.slug), description),
                         )
                         use_case_id = cur.fetchone()[0]
                     cur.execute(
                         """
                         INSERT INTO repository_use_cases (
                           repository_id, use_case_id, fit_score, reason, source_type, analysis_id, reviewed
-                        ) VALUES (%s,%s,%s,%s,'ai',%s,true)
+                        ) VALUES (%s,%s,%s,%s,%s,%s,true)
                         ON CONFLICT (repository_id, use_case_id, source_type) DO UPDATE SET
                           fit_score = EXCLUDED.fit_score,
                           reason = EXCLUDED.reason,
@@ -197,6 +202,7 @@ class AIStore:
                             use_case_id,
                             inference.fit_score,
                             inference.reason,
+                            source_type,
                             analysis_id,
                         ),
                     )
@@ -215,7 +221,7 @@ class AIStore:
                         INSERT INTO repository_relations (
                           from_repository_id, to_repository_id, relation_type, source_type,
                           confidence, analysis_id, reviewed
-                        ) VALUES (%s,%s,%s,'ai',%s,%s,true)
+                        ) VALUES (%s,%s,%s,%s,%s,%s,true)
                         ON CONFLICT (
                           from_repository_id, to_repository_id, relation_type, source_type
                         ) DO UPDATE SET
@@ -228,6 +234,7 @@ class AIStore:
                             bundle.repository_id,
                             target[0],
                             relation.relation_type,
+                            source_type,
                             relation.confidence,
                             analysis_id,
                         ),

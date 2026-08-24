@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { listBuildIdeas, listRepositories, listTaxonomyTerms, listUseCases } from "@/lib/data";
+import { listBuildIdeas, listRepositories, listTaxonomyTerms } from "@/lib/data";
+import { listReviewedUseCases } from "@/lib/use-case-data";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -10,7 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const [repositories, categories, useCases, ideas] = await Promise.all([
       listRepositories(100),
       listTaxonomyTerms("capability"),
-      listUseCases(),
+      listReviewedUseCases(),
       listBuildIdeas(100),
     ]);
     routes.push(

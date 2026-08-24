@@ -1,4 +1,4 @@
-name: Publish intelligence quality v2
+name: Publish intelligence evidence-only v1
 
 on:
   workflow_run:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: thingso-intelligence-quality-v2
+  group: thingso-intelligence-evidence-only-v1
   cancel-in-progress: false
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
       needed: ${{ steps.gate.outputs.needed }}
       head_sha: ${{ steps.gate.outputs.head_sha }}
     steps:
-      - name: Decide whether quality publication is needed
+      - name: Decide whether evidence-only publication is needed
         id: gate
         uses: actions/github-script@v7
         with:
@@ -46,6 +46,7 @@ jobs:
             });
             const watched = [
               'apps/worker/src/thingso_worker/quality_editorial.py',
+              'apps/worker/src/thingso_worker/intelligence_models.py',
               'apps/worker/scripts/generate_quality_intelligence.py',
               'apps/worker/scripts/import_quality_intelligence.py',
               'data/seeds/repositories.csv',
@@ -88,7 +89,7 @@ jobs:
             run --rm worker \
             sh -lc 'uv run --project apps/worker python -m thingso_worker seed-check data/seeds/repositories.csv'
 
-      - name: Check current quality-v2 coverage
+      - name: Check current evidence-only coverage
         id: coverage
         shell: bash
         run: |
@@ -97,11 +98,11 @@ jobs:
           COUNT="$(docker compose -p thingso-prod \
             --env-file "$THINGSO_ENV_FILE" \
             -f deploy/compose.prod.yml \
-            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = '\''repository_intelligence'\'' AND a.schema_version = '\''repo-intelligence-v3'\'' AND a.model_provider = '\''editorial'\'' AND a.model_name = '\''evidence-editorial-quality-v2'\'' AND a.prompt_version = '\''manual-intelligence-v3-quality-v2'\'' AND a.review_status = '\''approved'\'' AND a.source_snapshot_id = r.current_snapshot_id;"')"
+            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = '\''repository_intelligence'\'' AND a.schema_version = '\''repo-intelligence-v3'\'' AND a.model_provider = '\''editorial'\'' AND a.model_name = '\''evidence-only-editorial-v1'\'' AND a.prompt_version = '\''manual-intelligence-v3-evidence-only-v1'\'' AND a.review_status = '\''approved'\'' AND a.source_snapshot_id = r.current_snapshot_id;"')"
           echo "approved=$COUNT"
           echo "approved=$COUNT" >> "$GITHUB_OUTPUT"
 
-      - name: Generate and import evidence-first quality profiles
+      - name: Generate and import evidence-only profiles
         if: steps.coverage.outputs.approved < 100
         shell: bash
         run: |
@@ -114,12 +115,12 @@ jobs:
               set -eu
               uv run --project apps/worker python apps/worker/scripts/generate_quality_intelligence.py \
                 --seed data/seeds/repositories.csv \
-                --output /tmp/editorial-quality-v2.json
+                --output /tmp/editorial-evidence-only-v1.json
               uv run --project apps/worker python apps/worker/scripts/import_quality_intelligence.py \
-                /tmp/editorial-quality-v2.json
+                /tmp/editorial-evidence-only-v1.json
             '
 
-      - name: Quality-v2 production gate
+      - name: Evidence-only production gate
         shell: bash
         run: |
           set -euo pipefail
@@ -131,20 +132,23 @@ jobs:
               exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"$1\""
           }
           TOTAL="$(query_db 'SELECT count(*) FROM repositories WHERE current_snapshot_id IS NOT NULL;')"
-          QUALITY="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.model_name = 'evidence-editorial-quality-v2' AND a.prompt_version = 'manual-intelligence-v3-quality-v2' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
-          REVIEW="$(query_db "SELECT count(*) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.model_name = 'evidence-editorial-quality-v2' AND a.prompt_version = 'manual-intelligence-v3-quality-v2' AND a.source_snapshot_id = r.current_snapshot_id AND a.review_status <> 'approved';")"
+          APPROVED="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.model_name = 'evidence-only-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-only-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          REVIEW="$(query_db "SELECT count(*) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.model_name = 'evidence-only-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-only-v1' AND a.source_snapshot_id = r.current_snapshot_id AND a.review_status <> 'approved';")"
           echo "Current repositories: $TOTAL"
-          echo "Approved quality-v2 profiles: $QUALITY"
-          echo "Non-approved quality-v2 profiles: $REVIEW"
+          echo "Approved evidence-only profiles: $APPROVED"
+          echo "Non-approved evidence-only profiles: $REVIEW"
           {
-            echo "## ThingsO Intelligence Quality v2"
+            echo "## ThingsO Intelligence Evidence-only v1"
             echo "- Current repositories: $TOTAL"
-            echo "- Approved quality-v2 profiles: $QUALITY"
-            echo "- Non-approved current quality-v2 profiles: $REVIEW"
+            echo "- Approved evidence-only profiles: $APPROVED"
+            echo "- Non-approved current evidence-only profiles: $REVIEW"
+            echo "- Category-template semantic leakage gate: passed during generation"
             echo "- Semantic duplicate gate: passed during generation"
+            echo "- Unknown/sparse sections: explicitly allowed"
+            echo "- Overall confidence: evidence-coverage weighted"
           } >> "$GITHUB_STEP_SUMMARY"
           test "$TOTAL" -ge 100
-          test "$QUALITY" -ge 100
+          test "$APPROVED" -ge 100
           test "$REVIEW" -eq 0
 
       - name: Production health check

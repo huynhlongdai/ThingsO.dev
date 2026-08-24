@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from thingso_worker.editorial_baseline import TEMPLATES, generate_editorial_draft, load_seed_rows
+from thingso_worker.editorial_baseline import (
+    TEMPLATES,
+    generate_editorial_draft,
+    load_seed_rows,
+)
 
 
 SEED = Path(__file__).parents[3] / "data" / "seeds" / "repositories.csv"

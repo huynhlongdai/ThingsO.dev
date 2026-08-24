@@ -22,7 +22,7 @@ def test_evidence_depth_workflow_is_versioned_and_snapshot_reconciled() -> None:
     assert "Overall confidence: evidence-coverage weighted" in workflow
 
 
-def test_evidence_refresh_is_deploy_aware_and_collects_v3_depth() -> None:
+def test_evidence_refresh_is_deploy_aware_and_reconciles_each_repository() -> None:
     workflow = (ROOT / ".github/workflows/refresh-intelligence-evidence.yml").read_text(
         encoding="utf-8"
     )
@@ -31,6 +31,10 @@ def test_evidence_refresh_is_deploy_aware_and_collects_v3_depth() -> None:
     assert "semantic_depth.py" in workflow
     assert "source_entrypoint" in workflow
     assert "changelog" in workflow
+    assert '--repository "$full_name"' in workflow
+    assert '--category "$category"' in workflow
+    assert "import_quality_intelligence.py" in workflow
+    assert 'test "$DEPTH" -eq "$REPOS"' in workflow
 
 
 def test_status_beacon_reports_evidence_depth_v1() -> None:

@@ -1,10 +1,6 @@
-name: Activate production data
+name: Activate production data (bootstrap only)
 
 on:
-  workflow_run:
-    workflows: ["Deploy production"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -16,11 +12,6 @@ permissions:
 
 jobs:
   activate:
-    if: >-
-      ${{
-        github.event_name == 'workflow_dispatch' ||
-        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
-      }}
     name: Seed and ingest curated repositories
     runs-on: self-hosted
     timeout-minutes: 120

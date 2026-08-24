@@ -12,6 +12,8 @@ from psycopg.types.json import Jsonb
 from .ai_models import AnalysisReview, EvidenceReference, RepositoryAnalysis, ReviewIssue
 from .ai_store import AIStore, PublishedInferenceCounts
 from .evidence import EvidenceBuilder, EvidenceBundle
+from .intelligence_compiler import compile_editorial_profile
+from .intelligence_draft import EditorialIntelligenceDraftV3
 from .intelligence_models import RepositoryIntelligenceProfileV3
 
 PROVIDER = "editorial"
@@ -296,6 +298,23 @@ def _projection(profile: RepositoryIntelligenceProfileV3) -> RepositoryAnalysis:
     )
 
 
+def _profile_from_entry(
+    entry: dict[str, object],
+    bundle: EvidenceBundle,
+) -> RepositoryIntelligenceProfileV3:
+    if "draft" in entry:
+        draft = EditorialIntelligenceDraftV3.model_validate(entry["draft"])
+        compiled = compile_editorial_profile(bundle, draft)
+        return compiled.model_copy(update={"evidence": _evidence_references(bundle)})
+
+    if "profile" in entry:
+        raw_profile = dict(entry["profile"])
+        raw_profile["evidence"] = [item.model_dump(mode="json") for item in _evidence_references(bundle)]
+        return RepositoryIntelligenceProfileV3.model_validate(raw_profile)
+
+    raise ValueError("Manual intelligence entry must contain either 'draft' or 'profile'.")
+
+
 def import_manual_intelligence(
     database_url: str,
     path: str | Path,
@@ -309,15 +328,15 @@ def import_manual_intelligence(
     results: list[ManualIntelligenceResult] = []
 
     for entry in payload:
+        if not isinstance(entry, dict):
+            raise ValueError("Manual intelligence entries must be JSON objects")
         full_name = str(entry["full_name"])
         bundle = evidence_builder.load_by_full_name(full_name)
         if _already_published(database_url, bundle):
             results.append(ManualIntelligenceResult(full_name=full_name, status="skipped-current-snapshot"))
             continue
 
-        raw_profile = dict(entry["profile"])
-        raw_profile["evidence"] = [item.model_dump(mode="json") for item in _evidence_references(bundle)]
-        profile = RepositoryIntelligenceProfileV3.model_validate(raw_profile)
+        profile = _profile_from_entry(entry, bundle)
         review = _review(bundle, profile)
         analysis_id = _write_profile(database_url, bundle, profile)
         store.write_review(

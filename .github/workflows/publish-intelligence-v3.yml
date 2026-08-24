@@ -2,9 +2,18 @@ name: Publish repository intelligence v3
 
 on:
   workflow_run:
-    workflows: ["Refresh intelligence evidence", "Deploy production"]
+    workflows: ["Refresh intelligence evidence"]
     types: [completed]
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - "apps/worker/src/thingso_worker/editorial_*.py"
+      - "apps/worker/scripts/generate_editorial_baseline.py"
+      - "apps/worker/scripts/import_manual_intelligence.py"
+      - "data/seeds/repositories.csv"
+      - "packages/db/migrations/**"
+      - ".github/workflows/publish-intelligence-v3.yml"
   workflow_dispatch:
 
 concurrency:
@@ -19,6 +28,7 @@ jobs:
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'push' ||
         (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
       }}
     runs-on: self-hosted
@@ -31,10 +41,28 @@ jobs:
         run: |
           set -euo pipefail
           ROOT="$HOME/thingso-prod"
-          RELEASE="$(readlink -f "$ROOT/current")"
           ENV_FILE="$ROOT/shared/.env.production"
-          test -d "$RELEASE"
           test -f "$ENV_FILE"
+
+          # Versioned-intelligence pushes are independent from application deployment.
+          # Wait until that exact main commit has successfully become the production release
+          # before touching production data. Refresh/manual runs use the already-current release.
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            for attempt in $(seq 1 240); do
+              CURRENT_SHA="$(cat "$ROOT/current-sha" 2>/dev/null || true)"
+              if [ "$CURRENT_SHA" = "$GITHUB_SHA" ]; then
+                break
+              fi
+              if [ "$attempt" -eq 240 ]; then
+                echo "Production did not reach $GITHUB_SHA within 20 minutes"
+                exit 1
+              fi
+              sleep 5
+            done
+          fi
+
+          RELEASE="$(readlink -f "$ROOT/current")"
+          test -d "$RELEASE"
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 

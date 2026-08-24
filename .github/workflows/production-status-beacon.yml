@@ -5,7 +5,7 @@ on:
     workflows:
       - Deploy production
       - Refresh intelligence evidence
-      - Publish repository intelligence v3
+      - Legacy publish repository intelligence v3
       - Publish intelligence evidence-depth v1
       - Verify production intelligence
     types: [completed]

@@ -52,11 +52,36 @@ test("comparison is current-v3 and decision-first", async () => {
   assert.match(intelligenceData, /a\.source_snapshot_id = r\.current_snapshot_id/);
 });
 
+test("search ranks current Repository Intelligence v3 and supports decision filters", async () => {
+  const page = await source("../app/search/page.tsx");
+  const search = await source("../lib/search-v3.ts");
+  const card = await source("../components/repository-card.tsx");
+  const searchApi = await source("../app/api/search/route.ts");
+
+  assert.match(page, /searchRepositoriesV3/);
+  assert.match(page, /Decision filters/);
+  assert.match(page, /Minimum health/);
+  assert.match(page, /Capability/);
+  assert.match(page, /Repository Intelligence v3/);
+
+  assert.match(search, /analysis_type = 'repository_intelligence'/);
+  assert.match(search, /schema_version = 'repo-intelligence-v3'/);
+  assert.match(search, /source_snapshot_id = r\.current_snapshot_id/);
+  assert.match(search, /choose_when/);
+  assert.match(search, /evaluate_first/);
+  assert.match(search, /score\.total_score >= \$4/);
+
+  assert.match(card, /summarySource === "editorial"/);
+  assert.match(searchApi, /searchRepositoriesV3/);
+  assert.match(searchApi, /category/);
+  assert.match(searchApi, /minHealth/);
+});
+
 test("public API and SEO routes exist", async () => {
   const searchApi = await source("../app/api/search/route.ts");
   const healthApi = await source("../app/api/health/route.ts");
   const sitemap = await source("../app/sitemap.ts");
-  assert.match(searchApi, /searchRepositories/);
+  assert.match(searchApi, /searchRepositoriesV3/);
   assert.match(healthApi, /databaseHealthcheck/);
   assert.match(sitemap, /listRepositories/);
 });

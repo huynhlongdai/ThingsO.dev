@@ -6,7 +6,7 @@ export type RepositoryCardData = {
   owner: string;
   name: string;
   summary: string;
-  summarySource?: "source" | "ai_inference";
+  summarySource?: "source" | "ai_inference" | "editorial";
   healthScore: number | null;
   stars: string | number;
   language: string | null;
@@ -16,6 +16,12 @@ export type RepositoryCardData = {
 };
 
 export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
+  const summaryKind = repo.summarySource === "editorial"
+    ? "editorial"
+    : repo.summarySource === "ai_inference"
+      ? "ai_inference"
+      : "source_fact";
+
   return (
     <article className="repo-card">
       <div className="repo-card__main">
@@ -26,7 +32,7 @@ export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
         <HealthScore score={repo.healthScore} />
       </div>
       <div className="repo-card__summary-block">
-        <ProvenanceBadge kind={repo.summarySource === "ai_inference" ? "ai_inference" : "source_fact"} />
+        <ProvenanceBadge kind={summaryKind} />
         <p className="repo-card__summary">{repo.summary}</p>
       </div>
       {repo.fitReason ? (

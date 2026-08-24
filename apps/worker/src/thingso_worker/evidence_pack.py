@@ -7,7 +7,7 @@ from .models import SourceDocument
 from .normalization import make_source_document
 
 MAX_TREE_LINES = 700
-MAX_SELECTED_FILES = 5
+MAX_SELECTED_FILES = 8
 
 _MANIFESTS = {
     "package.json",
@@ -58,6 +58,52 @@ _PROJECT_DOCS = {
     "install.md",
     "installation.md",
 }
+_EVOLUTION_DOCS = {
+    "changelog.md",
+    "changes.md",
+    "history.md",
+    "roadmap.md",
+    "releases.md",
+}
+_SOURCE_ENTRYPOINT_NAMES = {
+    "main.py",
+    "app.py",
+    "server.py",
+    "cli.py",
+    "__main__.py",
+    "index.ts",
+    "index.tsx",
+    "index.js",
+    "index.jsx",
+    "main.ts",
+    "main.js",
+    "main.go",
+    "main.rs",
+}
+_CORE_SOURCE_NAMES = {
+    "engine.py",
+    "graph.py",
+    "orchestrator.py",
+    "pipeline.py",
+    "router.py",
+    "runtime.py",
+    "workflow.py",
+}
+
+
+def _is_source_entrypoint(path: str) -> bool:
+    lower = path.lower()
+    pure = PurePosixPath(lower)
+    name = pure.name
+    depth = len(pure.parts)
+    if name in _SOURCE_ENTRYPOINT_NAMES and depth <= 4:
+        return True
+    if name not in _CORE_SOURCE_NAMES or depth > 5:
+        return False
+    return any(
+        part in {"src", "lib", "core", "graph", "graphs", "agent", "agents", "runtime"}
+        for part in pure.parts[:-1]
+    )
 
 
 def _document_type(path: str) -> str:
@@ -77,6 +123,10 @@ def _document_type(path: str) -> str:
         return "ci"
     if name in _CONFIG_FILES:
         return "configuration"
+    if name in _EVOLUTION_DOCS:
+        return "changelog"
+    if _is_source_entrypoint(path):
+        return "source_entrypoint"
     return "documentation"
 
 
@@ -90,10 +140,14 @@ def _priority(path: str) -> tuple[int, int, str] | None:
         return (10 if depth == 1 else 18, depth, lower)
     if name in _CONTAINER_FILES:
         return (12 if depth == 1 else 20, depth, lower)
+    if _is_source_entrypoint(path):
+        return (14 if depth == 1 else 26, depth, lower)
     if name in _CONFIG_FILES:
         return (22, depth, lower)
     if name in _PROJECT_DOCS:
         return (24 if depth <= 2 else 30, depth, lower)
+    if name in _EVOLUTION_DOCS:
+        return (26 if depth <= 2 else 32, depth, lower)
     if name in _CI_FILES:
         return (27, depth, lower)
     if lower.startswith(".github/workflows/") and lower.endswith((".yml", ".yaml")):
@@ -108,6 +162,8 @@ def _priority(path: str) -> tuple[int, int, str] | None:
             "deployment",
             "development",
             "contributing",
+            "internals",
+            "concepts",
         )
     ):
         return (34, depth, lower)
@@ -124,6 +180,10 @@ def _selection_group(path: str) -> str:
         return "project-process"
     if document_type == "ci":
         return "ci"
+    if document_type == "source_entrypoint":
+        return "source"
+    if document_type == "changelog":
+        return "evolution"
     return "docs"
 
 

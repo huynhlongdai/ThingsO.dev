@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from .ai_models import UseCaseInference
+from thingso_worker.ai_models import UseCaseInference
 
 
 # Versioned, intentionally small editorial mapping from the already-reviewed curated category

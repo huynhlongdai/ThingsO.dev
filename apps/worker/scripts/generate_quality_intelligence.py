@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from thingso_worker.intelligence_models import RepositoryIntelligenceProfileV3
 from thingso_worker.quality_editorial import generate_quality_entries
+from thingso_worker.semantic_depth import enhance_quality_entry
 from thingso_worker.settings import Settings
 
 
@@ -52,12 +53,12 @@ def main() -> None:
 
     settings = Settings()
     entries = [
-        validate_entry(entry)
+        validate_entry(enhance_quality_entry(settings.database_url, entry))
         for entry in generate_quality_entries(settings.database_url, args.seed)
     ]
     output = Path(args.output)
     output.write_text(json.dumps(entries, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(json.dumps({"generated": len(entries), "output": str(output), "quality": "evidence-only-v1"}))
+    print(json.dumps({"generated": len(entries), "output": str(output), "quality": "evidence-depth-v1"}))
 
 
 if __name__ == "__main__":

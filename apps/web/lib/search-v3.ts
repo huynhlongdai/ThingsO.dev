@@ -14,6 +14,8 @@ export type SearchRepositoryItem = {
   licenseSpdx: string | null;
   pushedAt: string | null;
   fitReason: string | null;
+  fitScore: number | null;
+  fitSource: "source" | "ai_inference" | "editorial" | null;
   tags: string[];
 };
 
@@ -36,6 +38,8 @@ type SearchRow = {
   health_score: string | number | null;
   intelligence_definition: string | null;
   fit_reason: string | null;
+  fit_score: string | number | null;
+  fit_source: string | null;
   tags: string[] | null;
   fts_rank: string | number | null;
   trigram_rank: string | number | null;
@@ -56,6 +60,13 @@ function safeCategory(value: string | null | undefined): string | null {
 function safeMinHealth(value: number | null | undefined): number | null {
   if (value === null || value === undefined || !Number.isFinite(value)) return null;
   return Math.min(100, Math.max(0, value));
+}
+
+function fitSource(value: string | null): SearchRepositoryItem["fitSource"] {
+  if (value === "editorial") return "editorial";
+  if (value === "ai") return "ai_inference";
+  if (value === "source") return "source";
+  return null;
 }
 
 const intelligenceSearchText = `
@@ -104,6 +115,8 @@ export async function searchRepositoriesV3(
        score.total_score AS health_score,
        intelligence.output_json->'identity'->>'definition' AS intelligence_definition,
        fit.reason AS fit_reason,
+       fit.fit_score,
+       fit.source_type AS fit_source,
        COALESCE(tags.slugs, ARRAY[]::text[]) AS tags,
        COALESCE(
          ts_rank(
@@ -138,11 +151,14 @@ export async function searchRepositoriesV3(
        LIMIT 1
      ) intelligence ON true
      LEFT JOIN LATERAL (
-       SELECT ru.reason
+       SELECT ru.reason, ru.fit_score, ru.source_type
        FROM repository_use_cases ru
        JOIN use_cases u ON u.id = ru.use_case_id AND u.status = 'active'
        WHERE ru.repository_id = r.id
-         AND (ru.source_type <> 'ai' OR ru.reviewed = true)
+         AND (
+           ru.source_type = 'source'
+           OR (ru.source_type IN ('ai', 'editorial') AND ru.reviewed = true)
+         )
        ORDER BY ru.fit_score DESC
        LIMIT 1
      ) fit ON true
@@ -176,6 +192,10 @@ export async function searchRepositoriesV3(
            FROM repository_use_cases ru2
            JOIN use_cases u2 ON u2.id = ru2.use_case_id AND u2.status = 'active'
            WHERE ru2.repository_id = r.id
+             AND (
+               ru2.source_type = 'source'
+               OR (ru2.source_type IN ('ai', 'editorial') AND ru2.reviewed = true)
+             )
              AND (u2.slug ILIKE '%' || $1 || '%' OR u2.title ILIKE '%' || $1 || '%')
          )
        )
@@ -211,6 +231,8 @@ export async function searchRepositoriesV3(
     licenseSpdx: row.license_spdx,
     pushedAt: row.pushed_at_source,
     fitReason: row.fit_reason,
+    fitScore: toNumber(row.fit_score),
+    fitSource: fitSource(row.fit_source),
     tags: row.tags ?? [],
   }));
 }

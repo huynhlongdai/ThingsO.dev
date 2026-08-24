@@ -12,15 +12,21 @@ export type RepositoryCardData = {
   language: string | null;
   licenseSpdx?: string | null;
   fitReason?: string | null;
+  fitScore?: number | null;
+  fitSource?: "source" | "ai_inference" | "editorial" | null;
+  showCompareAction?: boolean;
   tags: string[];
 };
 
+function provenanceKind(source: RepositoryCardData["fitSource"] | RepositoryCardData["summarySource"]) {
+  if (source === "editorial") return "editorial" as const;
+  if (source === "ai_inference") return "ai_inference" as const;
+  return "source_fact" as const;
+}
+
 export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
-  const summaryKind = repo.summarySource === "editorial"
-    ? "editorial"
-    : repo.summarySource === "ai_inference"
-      ? "ai_inference"
-      : "source_fact";
+  const summaryKind = provenanceKind(repo.summarySource);
+  const showFit = Boolean(repo.fitReason && repo.fitSource);
 
   return (
     <article className="repo-card">
@@ -35,10 +41,20 @@ export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
         <ProvenanceBadge kind={summaryKind} />
         <p className="repo-card__summary">{repo.summary}</p>
       </div>
-      {repo.fitReason ? (
+      {showFit ? (
         <div className="repo-card__fit">
-          <ProvenanceBadge kind="ai_inference" />
-          <span>{repo.fitReason}</span>
+          <ProvenanceBadge kind={provenanceKind(repo.fitSource)} />
+          <div className="repo-card__fit-copy">
+            {repo.fitScore !== null && repo.fitScore !== undefined ? (
+              <strong>{Math.round(repo.fitScore * 100)}% fit</strong>
+            ) : null}
+            <span>{repo.fitReason}</span>
+            {repo.showCompareAction ? (
+              <Link className="text-link" href={`/compare?repos=${encodeURIComponent(`${repo.owner}/${repo.name}`)}`}>
+                Compare this repository →
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <div className="repo-card__meta" aria-label="Repository metadata">

@@ -6,6 +6,7 @@ on:
       - Deploy production
       - Refresh intelligence evidence
       - Publish repository intelligence v3
+      - Publish intelligence quality v2
     types: [completed]
 
 permissions:

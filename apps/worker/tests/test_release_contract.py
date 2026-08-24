@@ -54,3 +54,24 @@ def test_evidence_refresh_fails_when_any_curated_repository_cannot_be_ingested()
     assert 'test "$total" -eq 100' in workflow
     assert 'test "$failed" -eq 0' in workflow
     assert 'attempt" -le 3' in workflow
+
+
+def test_data_maintenance_is_decoupled_from_application_deploys():
+    refresh = (ROOT / ".github/workflows/refresh-intelligence-evidence.yml").read_text(
+        encoding="utf-8"
+    )
+    activation = (ROOT / ".github/workflows/activate-data.yml").read_text(encoding="utf-8")
+    publish = (ROOT / ".github/workflows/publish-intelligence-v3.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in refresh
+    assert 'cron: "17 2 * * *"' in refresh
+    assert "Deploy production" not in refresh
+
+    assert "workflow_dispatch:" in activation
+    assert "Deploy production" not in activation
+    assert "schedule:" not in activation
+
+    assert 'workflows: ["Refresh intelligence evidence"]' in publish
+    assert "Deploy production" not in publish

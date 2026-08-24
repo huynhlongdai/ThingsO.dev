@@ -3,32 +3,41 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_evidence_only_workflow_is_versioned_and_fail_closed() -> None:
+def test_evidence_depth_workflow_is_versioned_and_snapshot_reconciled() -> None:
     workflow = (ROOT / ".github/workflows/publish-intelligence-quality-v2.yml").read_text(
         encoding="utf-8"
     )
 
-    assert 'workflows: ["Deploy production"]' in workflow
-    assert "change-gate:" in workflow
-    assert "quality_editorial.py" in workflow
-    assert "intelligence_models.py" in workflow
+    assert 'workflows: ["Refresh intelligence evidence"]' in workflow
+    assert "evidence-depth-editorial-v1" in workflow
+    assert "manual-intelligence-v3-evidence-depth-v1" in workflow
     assert "generate_quality_intelligence.py" in workflow
     assert "import_quality_intelligence.py" in workflow
-    assert "manual-intelligence-v3-evidence-only-v1" in workflow
-    assert "evidence-only-editorial-v1" in workflow
-    assert 'test "$APPROVED" -ge 100' in workflow
+    assert 'test "$APPROVED" -eq "$TOTAL"' in workflow
     assert 'test "$REVIEW" -eq 0' in workflow
-    assert "Category-template semantic leakage gate: passed during generation" in workflow
-    assert "Semantic duplicate gate: passed during generation" in workflow
+    assert "Current-snapshot reconciliation: required after every evidence refresh" in workflow
+    assert "Category-template semantic leakage gate: enabled" in workflow
+    assert "Semantic duplicate gate: enabled" in workflow
     assert "Unknown/sparse sections: explicitly allowed" in workflow
     assert "Overall confidence: evidence-coverage weighted" in workflow
 
 
-def test_status_beacon_reports_evidence_only_v1() -> None:
+def test_evidence_refresh_is_deploy_aware_and_collects_v3_depth() -> None:
+    workflow = (ROOT / ".github/workflows/refresh-intelligence-evidence.yml").read_text(
+        encoding="utf-8"
+    )
+    assert 'workflows: ["Deploy production"]' in workflow
+    assert "Evidence Pack v3" in workflow
+    assert "semantic_depth.py" in workflow
+    assert "source_entrypoint" in workflow
+    assert "changelog" in workflow
+
+
+def test_status_beacon_reports_evidence_depth_v1() -> None:
     beacon = (ROOT / ".github/workflows/production-status-beacon.yml").read_text(
         encoding="utf-8"
     )
-    assert "Publish intelligence evidence-only v1" in beacon
+    assert "Publish intelligence evidence-depth v1" in beacon
 
 
 def test_quality_contract_documents_accuracy_before_completeness() -> None:

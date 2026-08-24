@@ -1,0 +1,234 @@
+[
+  {
+    "full_name": "vercel/ai",
+    "analysis": {
+      "summary": "Vercel AI SDK is a provider-agnostic TypeScript toolkit for building AI applications and agents across popular JavaScript frameworks and runtimes. Its strongest fit is application-layer integration: unified model calls, tool use, streaming, structured output, chat and generative UI primitives, plus adapters for multiple model providers. It is best suited to developers who want one application API across model vendors rather than a full autonomous-agent runtime or infrastructure platform.",
+      "capabilities": ["provider-agnostic model API", "streaming text and structured output", "tool calling and agent loops", "framework UI integrations", "multiple model provider adapters"],
+      "limitations": ["focused primarily on TypeScript and JavaScript application development", "does not replace model hosting infrastructure", "advanced provider-specific features can vary by adapter"],
+      "deployment_modes": ["local", "serverless", "cloud-hosted"],
+      "interfaces": ["library", "sdk"],
+      "taxonomy_slugs": ["ai-agent", "developer-productivity"],
+      "use_cases": [
+        {"slug": "build-ai-chat-apps", "fit_score": 0.96, "reason": "Provides streaming UI and model integration primitives for production chat experiences."},
+        {"slug": "multi-provider-llm-integration", "fit_score": 0.97, "reason": "A unified provider architecture reduces application coupling to a single model vendor."},
+        {"slug": "tool-using-agents", "fit_score": 0.9, "reason": "Supports tool execution and reusable agent patterns inside TypeScript applications."}
+      ],
+      "relations": [
+        {"repository_full_name": "mastra-ai/mastra", "relation_type": "similar", "confidence": 0.78, "reason": "Both target TypeScript developers building AI applications and agent workflows."},
+        {"repository_full_name": "openai/openai-agents-python", "relation_type": "alternative", "confidence": 0.73, "reason": "Both provide application-level agent primitives, with different language and ecosystem emphasis."}
+      ],
+      "build_ideas": [
+        {"slug": "unified-ai-provider-playground", "title": "Unified AI Provider Playground", "problem": "Teams need to compare model providers without rewriting application code for every vendor.", "target_user": "AI application developers", "complexity": "medium", "architecture": {"frontend": "Next.js", "ai_layer": "Vercel AI SDK", "storage": "PostgreSQL", "features": ["prompt presets", "provider switching", "latency and output comparison"]}, "assumptions": ["Users provide their own provider credentials or gateway access"], "risks": ["Provider feature parity varies", "Cost comparisons change over time"]}
+      ],
+      "confidence": 0.94
+    }
+  },
+  {
+    "full_name": "activepieces/activepieces",
+    "analysis": {
+      "summary": "Activepieces is an open-source automation platform centered on a visual flow builder and an extensible TypeScript integration system called pieces. It targets both technical and non-technical automation users, supports branching and loops, and has increasingly strong AI and MCP-oriented integrations. It is a good fit when a team wants a self-hostable workflow product with a user-facing builder rather than only a code-first orchestration library.",
+      "capabilities": ["visual workflow automation", "community integration pieces", "branching and loops", "AI automation", "MCP exposure for integrations", "self-hosting"],
+      "limitations": ["complex enterprise deployments require operational ownership", "connector coverage varies by service", "visual automation is less suitable for some deeply custom code workflows"],
+      "deployment_modes": ["self-hosted", "docker", "cloud-hosted", "managed-saas"],
+      "interfaces": ["web-app", "server", "mcp-server"],
+      "taxonomy_slugs": ["workflow-automation", "ai-agent", "self-hosting"],
+      "use_cases": [
+        {"slug": "business-workflow-automation", "fit_score": 0.96, "reason": "The visual builder and integration catalog target repeatable business workflows."},
+        {"slug": "self-hosted-automation", "fit_score": 0.93, "reason": "Can be operated as an open-source automation stack under the user's control."},
+        {"slug": "mcp-integration-hub", "fit_score": 0.86, "reason": "Pieces can be made available to LLM clients through MCP-oriented workflows."}
+      ],
+      "relations": [
+        {"repository_full_name": "n8n-io/n8n", "relation_type": "alternative", "confidence": 0.94, "reason": "Both are visual workflow automation platforms with large integration ecosystems and self-hosting options."},
+        {"repository_full_name": "automatisch/automatisch", "relation_type": "similar", "confidence": 0.86, "reason": "Both provide open-source alternatives for SaaS workflow automation."}
+      ],
+      "build_ideas": [
+        {"slug": "sme-automation-template-market", "title": "SME Automation Template Market", "problem": "Small businesses struggle to translate repetitive operations into reliable automations.", "target_user": "Small business operators and automation consultants", "complexity": "medium", "architecture": {"automation": "Activepieces", "catalog": "template registry", "frontend": "web app", "features": ["industry templates", "guided setup", "health checks"]}, "assumptions": ["Target services have supported pieces"], "risks": ["Third-party API changes can break templates"]}
+      ],
+      "confidence": 0.92
+    }
+  },
+  {
+    "full_name": "zai-org/Open-AutoGLM",
+    "analysis": {
+      "summary": "Open-AutoGLM is a mobile-device agent framework that combines visual understanding, planning and device automation to operate phone interfaces. Its documented Android path uses ADB for control, with model-driven perception of the screen and generated action sequences. It is most relevant to research and controlled automation scenarios where an agent must interact with existing mobile user interfaces rather than only call application APIs.",
+      "capabilities": ["mobile screen understanding", "device action planning", "ADB-based Android control", "multimodal phone automation", "model deployment support"],
+      "limitations": ["mobile UI changes can reduce automation reliability", "ADB setup and device permissions add operational friction", "vision-based interaction is slower and less deterministic than direct APIs"],
+      "deployment_modes": ["local", "self-hosted"],
+      "interfaces": ["cli"],
+      "taxonomy_slugs": ["ai-agent"],
+      "use_cases": [
+        {"slug": "mobile-ui-agent", "fit_score": 0.97, "reason": "The core project is designed for model-driven interaction with phone interfaces."},
+        {"slug": "mobile-automation-research", "fit_score": 0.93, "reason": "Provides a practical framework for evaluating multimodal planning and mobile control."}
+      ],
+      "relations": [
+        {"repository_full_name": "browser-use/browser-use", "relation_type": "similar", "confidence": 0.72, "reason": "Both let agents operate graphical software through model-guided interaction, but target different interface environments."}
+      ],
+      "build_ideas": [
+        {"slug": "mobile-agent-evaluation-lab", "title": "Mobile Agent Evaluation Lab", "problem": "Teams need repeatable ways to measure whether mobile agents can complete real application tasks reliably.", "target_user": "AI agent researchers and mobile automation teams", "complexity": "high", "architecture": {"agent": "Open-AutoGLM", "devices": "controlled Android test devices", "runner": "task scenario service", "storage": "evaluation database"}, "assumptions": ["Testing is performed on devices and applications the operator is authorized to automate"], "risks": ["UI drift changes benchmark behavior", "Device-specific differences can affect reproducibility"]}
+      ],
+      "confidence": 0.86
+    }
+  },
+  {
+    "full_name": "agent0ai/agent-zero",
+    "analysis": {
+      "summary": "Agent Zero is a general-purpose autonomous agent platform designed to run as an interactive, tool-using environment rather than a narrow library. Its current documentation emphasizes Docker-based installation, a Web UI, model configuration, host connectivity and practical workflows. It fits users who want an extensible agent workspace with terminal and host integration, while the broad capability surface means deployments need careful permissions and operational boundaries.",
+      "capabilities": ["general-purpose agent runtime", "web user interface", "tool and terminal execution", "Docker deployment", "host connector", "model configuration"],
+      "limitations": ["broad tool access requires careful permission design", "agent reliability depends heavily on selected models and tools", "more operationally involved than a small embedded SDK"],
+      "deployment_modes": ["local", "self-hosted", "docker"],
+      "interfaces": ["web-app", "server"],
+      "taxonomy_slugs": ["ai-agent", "self-hosting"],
+      "use_cases": [
+        {"slug": "personal-general-purpose-agent", "fit_score": 0.93, "reason": "Designed as an interactive agent environment with configurable models and tools."},
+        {"slug": "self-hosted-agent-workspace", "fit_score": 0.91, "reason": "Docker and remote instance workflows make it suitable for self-managed agent deployments."}
+      ],
+      "relations": [
+        {"repository_full_name": "NousResearch/hermes-agent", "relation_type": "alternative", "confidence": 0.87, "reason": "Both are broad personal/general-purpose agent environments with tools and self-hosted operation."},
+        {"repository_full_name": "Fosowl/agenticSeek", "relation_type": "similar", "confidence": 0.78, "reason": "Both target autonomous assistant workflows beyond a single embedded application use case."}
+      ],
+      "build_ideas": [
+        {"slug": "private-ops-agent-console", "title": "Private Operations Agent Console", "problem": "Small technical teams want one private interface for repeatable server and application maintenance tasks.", "target_user": "Technical founders and small DevOps teams", "complexity": "high", "architecture": {"agent": "Agent Zero", "runtime": "isolated Docker workers", "frontend": "Web UI", "policy": "allowlisted tools and approvals"}, "assumptions": ["Operators restrict the agent to systems they administer"], "risks": ["Over-broad tool permissions", "Non-deterministic actions require approval gates"]}
+      ],
+      "confidence": 0.84
+    }
+  },
+  {
+    "full_name": "NousResearch/hermes-agent",
+    "analysis": {
+      "summary": "Hermes Agent is a personal AI agent platform built around persistent memory, skills learned from experience, tool use and access through multiple interfaces. The project supports a CLI/TUI, messaging gateways, scheduled tasks, MCP integration, browser and terminal tools, multiple model providers and self-hosted operation. Its differentiator is the long-lived personal-agent model: retaining useful context and procedural skills across sessions rather than treating every run as a stateless request.",
+      "capabilities": ["persistent memory", "skills and learning loop", "terminal and browser tools", "messaging gateways", "MCP integration", "scheduled jobs", "multi-provider models"],
+      "limitations": ["persistent agents require deliberate privacy and permission configuration", "tool-rich workflows depend on model quality", "a large capability surface increases setup complexity"],
+      "deployment_modes": ["local", "self-hosted", "cloud-hosted"],
+      "interfaces": ["cli", "desktop", "server", "mcp-server"],
+      "taxonomy_slugs": ["ai-agent", "self-hosting", "developer-productivity"],
+      "use_cases": [
+        {"slug": "persistent-personal-agent", "fit_score": 0.98, "reason": "Memory, skills and user context are core architectural features."},
+        {"slug": "messaging-based-agent", "fit_score": 0.94, "reason": "The gateway supports interacting with the same agent from messaging platforms."},
+        {"slug": "scheduled-agent-automation", "fit_score": 0.9, "reason": "Cron and scheduled tasks enable recurring agent work."}
+      ],
+      "relations": [
+        {"repository_full_name": "agent0ai/agent-zero", "relation_type": "alternative", "confidence": 0.87, "reason": "Both provide broad, self-hostable personal agent environments with tools."},
+        {"repository_full_name": "open-webui/open-webui", "relation_type": "complements", "confidence": 0.69, "reason": "Both can sit in self-hosted AI stacks, but Hermes focuses on an agent runtime while Open WebUI focuses on model interaction UI."}
+      ],
+      "build_ideas": [
+        {"slug": "personal-research-operator", "title": "Persistent Personal Research Operator", "problem": "Long-running research projects lose context and repeated procedures between sessions.", "target_user": "Researchers, analysts and technical founders", "complexity": "medium", "architecture": {"agent": "Hermes Agent", "memory": "persistent agent memory", "tools": ["web research", "notes", "scheduled follow-up"], "delivery": "messaging gateway"}, "assumptions": ["Research sources are independently verified before high-impact decisions"], "risks": ["Memory can preserve outdated assumptions", "Automated research still needs source quality checks"]}
+      ],
+      "confidence": 0.93
+    }
+  },
+  {
+    "full_name": "vercel-labs/agent-browser",
+    "analysis": {
+      "summary": "agent-browser is a command-line browser automation tool designed specifically for AI agents. It exposes navigation, page reading and browser operations through agent-friendly commands, supports persistent configuration and sessions, and emphasizes machine-readable interaction with rendered pages. It is a strong fit as a browser tool underneath coding or task agents, while it is not itself a complete planning or memory system.",
+      "capabilities": ["browser navigation", "agent-readable page extraction", "session management", "CLI automation", "browser configuration", "network and cookie controls"],
+      "limitations": ["does not provide the full planning and memory layer of an autonomous agent", "dynamic sites can still require application-specific handling", "browser execution adds more overhead than direct HTTP APIs"],
+      "deployment_modes": ["local", "self-hosted"],
+      "interfaces": ["cli"],
+      "taxonomy_slugs": ["browser-automation", "developer-productivity"],
+      "use_cases": [
+        {"slug": "browser-tool-for-ai-agents", "fit_score": 0.98, "reason": "The command surface is explicitly optimized for use by AI agents."},
+        {"slug": "agentic-web-testing", "fit_score": 0.88, "reason": "Scriptable browser sessions can support model-assisted interaction and validation workflows."}
+      ],
+      "relations": [
+        {"repository_full_name": "browser-use/browser-use", "relation_type": "alternative", "confidence": 0.9, "reason": "Both provide browser interaction capabilities intended for AI agents, with different APIs and orchestration styles."},
+        {"repository_full_name": "SeleniumHQ/selenium", "relation_type": "alternative", "confidence": 0.75, "reason": "Both automate browsers, but agent-browser exposes a more agent-oriented command interface."}
+      ],
+      "build_ideas": [
+        {"slug": "agent-browser-regression-runner", "title": "Agent-Friendly Web Regression Runner", "problem": "Teams need lightweight browser checks that an AI coding agent can run and interpret without a separate test authoring stack.", "target_user": "Developers using coding agents", "complexity": "medium", "architecture": {"browser": "agent-browser", "runner": "scenario CLI", "output": "structured run report", "ci": "GitHub Actions"}, "assumptions": ["Tests target sites the team owns or is authorized to test"], "risks": ["UI changes can make semantic steps ambiguous"]}
+      ],
+      "confidence": 0.9
+    }
+  },
+  {
+    "full_name": "crewAIInc/crewAI",
+    "analysis": {
+      "summary": "CrewAI is a Python framework for orchestrating collaborative AI agents, with an emphasis on assigning roles, tasks and coordinated workflows to groups of agents. It is useful when a product needs explicit multi-agent decomposition and reusable orchestration rather than only a single tool-calling loop. The framework has a large ecosystem and active adoption, but successful production use still requires careful workflow design, observability and limits on autonomous behavior.",
+      "capabilities": ["multi-agent orchestration", "role and task modeling", "agent collaboration", "workflow composition", "Python application integration"],
+      "limitations": ["multi-agent systems can increase latency and token cost", "coordination does not guarantee factual correctness", "production systems need explicit monitoring and approval boundaries"],
+      "deployment_modes": ["local", "self-hosted", "cloud-hosted"],
+      "interfaces": ["library", "sdk"],
+      "taxonomy_slugs": ["ai-agent", "workflow-automation"],
+      "use_cases": [
+        {"slug": "multi-agent-workflows", "fit_score": 0.98, "reason": "Role-based collaborative agent orchestration is the project's core focus."},
+        {"slug": "agentic-business-process", "fit_score": 0.9, "reason": "Structured crews and tasks can map onto multi-stage knowledge workflows."}
+      ],
+      "relations": [
+        {"repository_full_name": "microsoft/autogen", "relation_type": "alternative", "confidence": 0.93, "reason": "Both are major Python frameworks for multi-agent application development."},
+        {"repository_full_name": "FoundationAgents/MetaGPT", "relation_type": "similar", "confidence": 0.82, "reason": "Both model coordinated agent roles for complex multi-step work."}
+      ],
+      "build_ideas": [
+        {"slug": "multi-agent-content-research-pipeline", "title": "Multi-Agent Research and Content Pipeline", "problem": "Content teams need research, drafting and evidence review to be separated into accountable stages.", "target_user": "Content operations and research teams", "complexity": "medium", "architecture": {"orchestration": "CrewAI", "roles": ["researcher", "writer", "reviewer"], "storage": "source and draft database", "approval": "human publish gate"}, "assumptions": ["Every factual claim can retain source references"], "risks": ["Agent agreement can still repeat the same incorrect assumption"]}
+      ],
+      "confidence": 0.91
+    }
+  },
+  {
+    "full_name": "microsoft/autogen",
+    "analysis": {
+      "summary": "Microsoft AutoGen is a programming framework for agentic AI and multi-agent systems. It provides abstractions for building agents that exchange messages, use tools and participate in structured orchestration patterns, making it suitable for developers who want a flexible research-to-application framework rather than a fixed end-user automation product. Its breadth is valuable for experimentation, but teams should expect to design their own application policies, evaluation and operational controls around it.",
+      "capabilities": ["agent programming framework", "multi-agent messaging", "tool-enabled agents", "extensible orchestration", "Python ecosystem"],
+      "limitations": ["framework-level flexibility requires more application design", "multi-agent architectures can become operationally complex", "evaluation and safety policies remain application responsibilities"],
+      "deployment_modes": ["local", "self-hosted", "cloud-hosted"],
+      "interfaces": ["library", "sdk"],
+      "taxonomy_slugs": ["ai-agent"],
+      "use_cases": [
+        {"slug": "multi-agent-application-development", "fit_score": 0.97, "reason": "The framework is designed for constructing agentic and multi-agent software."},
+        {"slug": "agent-orchestration-research", "fit_score": 0.92, "reason": "Flexible agent abstractions make it useful for testing orchestration patterns."}
+      ],
+      "relations": [
+        {"repository_full_name": "crewAIInc/crewAI", "relation_type": "alternative", "confidence": 0.93, "reason": "Both are popular frameworks for constructing multi-agent workflows in Python."},
+        {"repository_full_name": "openai/openai-agents-python", "relation_type": "alternative", "confidence": 0.82, "reason": "Both offer Python building blocks for tool-using agent applications."}
+      ],
+      "build_ideas": [
+        {"slug": "agent-orchestration-benchmark-workbench", "title": "Agent Orchestration Benchmark Workbench", "problem": "Developers need to compare orchestration strategies on the same tasks instead of judging frameworks by demos.", "target_user": "AI engineering teams", "complexity": "high", "architecture": {"framework": "AutoGen", "scenarios": "versioned task suite", "telemetry": "event and cost traces", "evaluation": "deterministic and human scoring"}, "assumptions": ["Model and tool configurations are recorded for each run"], "risks": ["Benchmark results can overfit to narrow scenarios"]}
+      ],
+      "confidence": 0.89
+    }
+  },
+  {
+    "full_name": "Fosowl/agenticSeek",
+    "analysis": {
+      "summary": "AgenticSeek is an autonomous assistant project oriented toward private or locally controlled agent workflows, including research and task execution. It is positioned closer to an end-user agent system than a small SDK, making it interesting for users who want a self-hosted assistant stack with less dependence on a hosted agent product. As with other broad autonomous assistants, actual capability and reliability depend on the configured models, local resources, browser/tool integrations and task boundaries.",
+      "capabilities": ["autonomous assistant workflows", "research-oriented tasks", "local or self-hosted operation", "tool-using agent behavior"],
+      "limitations": ["local model quality and hardware strongly affect results", "broad autonomous tasks can be less predictable than fixed workflows", "setup complexity is higher than hosted assistants"],
+      "deployment_modes": ["local", "self-hosted", "docker"],
+      "interfaces": ["web-app", "server"],
+      "taxonomy_slugs": ["ai-agent", "self-hosting"],
+      "use_cases": [
+        {"slug": "private-autonomous-assistant", "fit_score": 0.94, "reason": "The project is oriented toward running autonomous assistant capabilities under user control."},
+        {"slug": "self-hosted-research-agent", "fit_score": 0.88, "reason": "Research-style agent workflows can be operated in a self-managed environment."}
+      ],
+      "relations": [
+        {"repository_full_name": "agent0ai/agent-zero", "relation_type": "alternative", "confidence": 0.81, "reason": "Both provide broad self-hosted autonomous agent environments."},
+        {"repository_full_name": "NousResearch/hermes-agent", "relation_type": "alternative", "confidence": 0.8, "reason": "Both target general-purpose agents that can be run under the user's control."}
+      ],
+      "build_ideas": [
+        {"slug": "private-market-research-desk", "title": "Private Research Desk", "problem": "Teams need a private environment for collecting and organizing public market and competitor information without sending all workflow state to a hosted agent service.", "target_user": "Small product and research teams", "complexity": "medium", "architecture": {"agent": "AgenticSeek", "sources": "public web research", "storage": "local research database", "review": "human evidence approval"}, "assumptions": ["Only public or authorized sources are collected"], "risks": ["Source quality varies", "Automated summaries can omit important context"]}
+      ],
+      "confidence": 0.76
+    }
+  },
+  {
+    "full_name": "mem0ai/mem0",
+    "analysis": {
+      "summary": "Mem0 is a memory layer for AI applications and agents. It focuses on extracting, storing and retrieving useful user or interaction context so applications can become more personalized across sessions without placing all history directly into every prompt. It can complement agent frameworks rather than replace them, and is most valuable when an application has a clear policy for what should be remembered, updated or forgotten.",
+      "capabilities": ["long-term agent memory", "memory extraction", "memory retrieval", "personalization context", "SDK and API integration", "self-hostable memory workflows"],
+      "limitations": ["memory quality depends on extraction and retrieval policy", "incorrect or stale memories can influence later outputs", "privacy and retention rules must be designed by the application"],
+      "deployment_modes": ["local", "self-hosted", "cloud-hosted", "managed-saas"],
+      "interfaces": ["library", "sdk", "api"],
+      "taxonomy_slugs": ["ai-agent", "developer-productivity"],
+      "use_cases": [
+        {"slug": "persistent-agent-memory", "fit_score": 0.99, "reason": "Persistent memory for AI applications and agents is the project's primary purpose."},
+        {"slug": "personalized-ai-apps", "fit_score": 0.94, "reason": "Stored user context can support personalization across sessions."}
+      ],
+      "relations": [
+        {"repository_full_name": "NousResearch/hermes-agent", "relation_type": "complements", "confidence": 0.82, "reason": "Hermes includes persistent-agent behavior while Mem0 can serve as a dedicated memory component in agent architectures."},
+        {"repository_full_name": "topoteretes/cognee", "relation_type": "alternative", "confidence": 0.7, "reason": "Both address persistent knowledge and retrieval for AI systems, with different data models and product emphasis."}
+      ],
+      "build_ideas": [
+        {"slug": "customer-support-memory-layer", "title": "Customer Support Memory Layer", "problem": "Support assistants repeatedly ask customers for context that was already established in earlier conversations.", "target_user": "Teams building AI-assisted customer support", "complexity": "medium", "architecture": {"memory": "Mem0", "application": "support assistant", "policy": "explicit retention and deletion rules", "audit": "memory provenance log"}, "assumptions": ["Users are informed about retained context", "Sensitive information follows application retention policy"], "risks": ["Stale memory can create incorrect assumptions", "Privacy requirements differ by deployment"]}
+      ],
+      "confidence": 0.9
+    }
+  }
+]

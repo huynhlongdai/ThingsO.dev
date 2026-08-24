@@ -1,0 +1,82 @@
+name: Publish manual enrichment
+
+on:
+  workflow_run:
+    workflows: ["Deploy production"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: thingso-manual-enrichment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      }}
+    runs-on: self-hosted
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Resolve current production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$HOME/thingso-prod"
+          RELEASE="$(readlink -f "$ROOT/current")"
+          ENV_FILE="$ROOT/shared/.env.production"
+          test -n "$RELEASE"
+          test -d "$RELEASE"
+          test -f "$ENV_FILE"
+          echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
+          echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
+
+      - name: Publish editorial canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker \
+            uv run --project apps/worker python \
+            apps/worker/scripts/import_manual_enrichment.py \
+            data/manual-enrichment/canary-10.json | tee /tmp/manual-enrichment.json
+
+      - name: Verify approved editorial analyses
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          APPROVED="$(docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            exec -T postgres psql \
+            -U thingso -d thingso -Atc \
+            "SELECT count(*) FROM ai_analyses WHERE analysis_type='repository_enrichment' AND model_provider='editorial' AND review_status='approved';")"
+          echo "Approved editorial analyses: $APPROVED"
+          test "$APPROVED" -ge 10
+
+          {
+            echo "## ThingsO manual editorial enrichment"
+            echo
+            echo "- Approved editorial analyses: $APPROVED"
+            echo "- Provider provenance: editorial"
+            echo "- Model provenance: chatgpt-gpt-5.6-sol-manual"
+            echo "- Publication gate: deterministic-evidence-review-v1"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Production health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --max-time 20 \
+            https://thingso.dev/api/health

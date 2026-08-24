@@ -1,6 +1,13 @@
 .repo-card__summary-block { margin: 18px 0; }
 .repo-card__summary-block .provenance { display: inline-block; margin-bottom: 8px; }
 .repo-card__summary-block .repo-card__summary { margin: 0; min-height: 0; }
+.repo-card__fit-copy { display: grid; gap: 7px; min-width: 0; }
+.repo-card__fit-copy strong { color: var(--text); font-size: .82rem; }
+.repo-card__fit-copy .text-link { width: fit-content; margin-top: 2px; }
+.use-case-ranked-grid { margin-top: 34px; }
+.use-case-ranked-item { position: relative; min-width: 0; }
+.use-case-ranked-item .repo-card { height: 100%; }
+.use-case-rank { position: absolute; z-index: 1; top: -9px; left: -8px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 8px; background: #111827; color: var(--accent); font-size: .72rem; font-weight: 800; }
 .empty-state { border: 1px dashed var(--border); border-radius: 16px; padding: 28px; color: var(--muted); }
 .empty-state strong { color: var(--text); }
 .idea-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }

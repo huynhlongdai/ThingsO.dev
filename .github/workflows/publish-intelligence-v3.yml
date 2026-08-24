@@ -5,6 +5,15 @@ on:
     workflows: ["Refresh intelligence evidence"]
     types: [completed]
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - "apps/worker/src/thingso_worker/editorial_*.py"
+      - "apps/worker/scripts/generate_editorial_baseline.py"
+      - "apps/worker/scripts/import_manual_intelligence.py"
+      - "data/seeds/repositories.csv"
+      - "packages/db/migrations/**"
+      - ".github/workflows/publish-intelligence-v3.yml"
   workflow_dispatch:
 
 concurrency:
@@ -19,6 +28,7 @@ jobs:
     if: >-
       ${{
         github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'push' ||
         (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
       }}
     runs-on: self-hosted
@@ -31,10 +41,28 @@ jobs:
         run: |
           set -euo pipefail
           ROOT="$HOME/thingso-prod"
-          RELEASE="$(readlink -f "$ROOT/current")"
           ENV_FILE="$ROOT/shared/.env.production"
-          test -d "$RELEASE"
           test -f "$ENV_FILE"
+
+          # Versioned-intelligence pushes are independent from application deployment.
+          # Wait until that exact main commit has successfully become the production release
+          # before touching production data. Refresh/manual runs use the already-current release.
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            for attempt in $(seq 1 240); do
+              CURRENT_SHA="$(cat "$ROOT/current-sha" 2>/dev/null || true)"
+              if [ "$CURRENT_SHA" = "$GITHUB_SHA" ]; then
+                break
+              fi
+              if [ "$attempt" -eq 240 ]; then
+                echo "Production did not reach $GITHUB_SHA within 20 minutes"
+                exit 1
+              fi
+              sleep 5
+            done
+          fi
+
+          RELEASE="$(readlink -f "$ROOT/current")"
+          test -d "$RELEASE"
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 
@@ -49,7 +77,45 @@ jobs:
             run --rm worker \
             sh -lc 'uv run --project apps/worker python -m thingso_worker seed-check data/seeds/repositories.csv'
 
+      - name: Check V3 publication reconciliation
+        id: reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+
+          query_db() {
+            docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"$1\""
+          }
+
+          VERSIONED="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.prompt_version = 'manual-intelligence-v3-usecases-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          USE_CASE_REPOS="$(query_db "SELECT count(DISTINCT ru.repository_id) FROM repository_use_cases ru JOIN use_cases u ON u.id = ru.use_case_id AND u.status = 'active' JOIN repositories r ON r.id = ru.repository_id JOIN ai_analyses a ON a.id = ru.analysis_id WHERE ru.source_type = 'editorial' AND ru.reviewed = true AND a.prompt_version = 'manual-intelligence-v3-usecases-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          ACTIVE_USE_CASES="$(query_db "SELECT count(*) FROM use_cases WHERE status = 'active' AND slug IN ('tool-using-ai-agents','multi-step-ai-automation','agent-orchestration','browser-task-automation','agentic-web-navigation','end-to-end-web-testing','multi-step-workflow-automation','integration-orchestration','scheduled-background-jobs','web-data-collection','crawling-and-content-extraction','public-web-monitoring','document-and-content-extraction','data-normalization-pipelines','research-data-preparation','private-self-hosted-deployment','data-control-and-sovereignty','internal-tools-and-knowledge','local-llm-inference','production-model-serving','private-knowledge-rag','semantic-search','document-question-answering','developer-workflow-automation','developer-tool-integration','evaluation-and-quality-gates','regression-testing','ai-application-observability','trace-and-evaluation-analysis','programmatic-image-generation','generative-media-pipelines','automated-video-production','video-postproduction-automation','content-production-automation','api-integration-layer','tool-protocol-bridging');")"
+
+          NEEDED=true
+          if [ "$VERSIONED" -ge 100 ] && [ "$USE_CASE_REPOS" -ge 100 ] && [ "$ACTIVE_USE_CASES" -eq 36 ]; then
+            NEEDED=false
+          fi
+
+          echo "Current TH-107 V3 profiles: $VERSIONED"
+          echo "Current reviewed curated use-case repositories: $USE_CASE_REPOS"
+          echo "Active curated use-case terms: $ACTIVE_USE_CASES"
+          echo "Publication reconciliation needed: $NEEDED"
+          echo "needed=$NEEDED" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## V3 publication reconciliation preflight"
+            echo "- Current TH-107 V3 profiles: $VERSIONED"
+            echo "- Repositories with reviewed curated use cases: $USE_CASE_REPOS"
+            echo "- Active curated use-case terms: $ACTIVE_USE_CASES"
+            echo "- Reconciliation needed: $NEEDED"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Generate and publish V3 intelligence
+        if: steps.reconcile.outputs.needed == 'true'
         shell: bash
         run: |
           set -euo pipefail

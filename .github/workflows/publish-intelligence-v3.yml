@@ -80,12 +80,18 @@ jobs:
           }
 
           APPROVED="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          VERSIONED="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.prompt_version = 'manual-intelligence-v3-usecases-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          USE_CASE_REPOS="$(query_db "SELECT count(DISTINCT ru.repository_id) FROM repository_use_cases ru JOIN use_cases u ON u.id = ru.use_case_id AND u.status = 'active' JOIN repositories r ON r.id = ru.repository_id JOIN ai_analyses a ON a.id = ru.analysis_id WHERE ru.source_type = 'editorial' AND ru.reviewed = true AND a.prompt_version = 'manual-intelligence-v3-usecases-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          ACTIVE_USE_CASES="$(query_db "SELECT count(*) FROM use_cases WHERE status = 'active' AND slug IN ('tool-using-ai-agents','multi-step-ai-automation','agent-orchestration','browser-task-automation','agentic-web-navigation','end-to-end-web-testing','multi-step-workflow-automation','integration-orchestration','scheduled-background-jobs','web-data-collection','crawling-and-content-extraction','public-web-monitoring','document-and-content-extraction','data-normalization-pipelines','research-data-preparation','private-self-hosted-deployment','data-control-and-sovereignty','internal-tools-and-knowledge','local-llm-inference','production-model-serving','private-knowledge-rag','semantic-search','document-question-answering','developer-workflow-automation','developer-tool-integration','evaluation-and-quality-gates','regression-testing','ai-application-observability','trace-and-evaluation-analysis','programmatic-image-generation','generative-media-pipelines','automated-video-production','video-postproduction-automation','content-production-automation','api-integration-layer','tool-protocol-bridging');")"
           TOTAL_REPOS="$(query_db 'SELECT count(*) FROM repositories WHERE current_snapshot_id IS NOT NULL;')"
           WITH_TREE="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type = 'repository_tree';")"
           WITH_TECH="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type IN ('manifest','container','configuration','contributing','security','architecture','ci','documentation','source_entrypoint');")"
 
           echo "Current repositories: $TOTAL_REPOS"
           echo "Approved current V3 profiles: $APPROVED"
+          echo "Approved current TH-107 V3 profiles: $VERSIONED"
+          echo "Repositories with reviewed curated use cases: $USE_CASE_REPOS"
+          echo "Active curated use-case terms: $ACTIVE_USE_CASES"
           echo "Tree evidence coverage: $WITH_TREE"
           echo "Technical evidence coverage: $WITH_TECH"
 
@@ -93,6 +99,9 @@ jobs:
             echo "## ThingsO Repository Intelligence V3"
             echo "- Current repositories: $TOTAL_REPOS"
             echo "- Approved V3 profiles on current snapshots: $APPROVED"
+            echo "- Approved TH-107 V3 profiles: $VERSIONED"
+            echo "- Repositories with reviewed curated use cases: $USE_CASE_REPOS"
+            echo "- Active curated use-case terms: $ACTIVE_USE_CASES"
             echo "- Repository tree coverage: $WITH_TREE"
             echo "- Technical evidence coverage: $WITH_TECH"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -101,6 +110,9 @@ jobs:
           test "$WITH_TREE" -ge 100
           test "$WITH_TECH" -ge 100
           test "$APPROVED" -ge 100
+          test "$VERSIONED" -ge 100
+          test "$USE_CASE_REPOS" -ge 100
+          test "$ACTIVE_USE_CASES" -eq 36
 
       - name: Show repositories without an approved current V3 profile
         if: always()

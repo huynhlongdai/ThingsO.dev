@@ -1,13 +1,6 @@
 name: Evidence export
 
 on:
-  pull_request:
-    paths:
-      - "apps/worker/src/thingso_worker/evidence_pack.py"
-      - "apps/worker/src/thingso_worker/github_client.py"
-      - "apps/worker/scripts/export_public_evidence.py"
-      - ".github/workflows/evidence-export.yml"
-      - "data/seeds/repositories.csv"
   workflow_dispatch:
 
 permissions:

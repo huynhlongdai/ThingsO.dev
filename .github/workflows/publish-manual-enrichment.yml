@@ -21,7 +21,7 @@ jobs:
         github.event.workflow_run.conclusion == 'success'
       }}
     runs-on: self-hosted
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment: production
 
     steps:
@@ -38,18 +38,22 @@ jobs:
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 
-      - name: Publish editorial canary
+      - name: Publish editorial analyses 1 through 25
         shell: bash
         run: |
           set -euo pipefail
           cd "$THINGSO_RELEASE"
-          docker compose -p thingso-prod \
-            --env-file "$THINGSO_ENV_FILE" \
-            -f deploy/compose.prod.yml \
-            run --rm worker \
-            uv run --project apps/worker python \
-            apps/worker/scripts/import_manual_enrichment.py \
-            data/manual-enrichment/canary-10.json | tee /tmp/manual-enrichment.json
+          for DATASET in \
+            data/manual-enrichment/canary-10.json \
+            data/manual-enrichment/batch-11-25.json; do
+            docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              run --rm worker \
+              uv run --project apps/worker python \
+              apps/worker/scripts/import_manual_enrichment.py \
+              "$DATASET"
+          done
 
       - name: Verify approved editorial analyses
         shell: bash
@@ -63,12 +67,13 @@ jobs:
             -U thingso -d thingso -Atc \
             "SELECT count(*) FROM ai_analyses WHERE analysis_type='repository_enrichment' AND model_provider='editorial' AND review_status='approved';")"
           echo "Approved editorial analyses: $APPROVED"
-          test "$APPROVED" -ge 10
+          test "$APPROVED" -ge 25
 
           {
             echo "## ThingsO manual editorial enrichment"
             echo
             echo "- Approved editorial analyses: $APPROVED"
+            echo "- Target coverage: 25 repositories"
             echo "- Provider provenance: editorial"
             echo "- Model provenance: chatgpt-gpt-5.6-sol-manual"
             echo "- Publication gate: deterministic-evidence-review-v1"

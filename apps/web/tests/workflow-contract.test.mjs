@@ -7,10 +7,17 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-test("V3 publication reconciles stale curated data after successful deploys", async () => {
+test("V3 publication reconciles versioned changes without coupling maintenance to deploy", async () => {
   const workflow = await source("../../../.github/workflows/publish-intelligence-v3.yml");
 
-  assert.match(workflow, /workflows: \["Refresh intelligence evidence", "Deploy production"\]/);
+  assert.match(workflow, /workflows: \["Refresh intelligence evidence"\]/);
+  assert.doesNotMatch(workflow, /Deploy production/);
+  assert.match(workflow, /push:/);
+  assert.match(workflow, /packages\/db\/migrations\/\*\*/);
+  assert.match(workflow, /\.github\/workflows\/publish-intelligence-v3\.yml/);
+  assert.match(workflow, /CURRENT_SHA/);
+  assert.match(workflow, /CURRENT_SHA" = "\$GITHUB_SHA/);
+  assert.match(workflow, /Production did not reach \$GITHUB_SHA within 20 minutes/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /id: reconcile/);
   assert.match(workflow, /prompt_version = 'manual-intelligence-v3-usecases-v1'/);

@@ -1,5 +1,6 @@
 from thingso_worker.normalization import (
     canonical_payload_hash,
+    make_source_document,
     normalize_languages,
     normalize_repository,
 )
@@ -47,3 +48,22 @@ def test_language_percentages_sum_to_100() -> None:
     rows = normalize_languages({"Python": 75, "JavaScript": 25})
     assert round(sum(row.percentage for row in rows), 6) == 100
     assert rows[0].language == "Python"
+
+
+def test_source_document_strips_nul_before_hash_and_persistence() -> None:
+    document = make_source_document(
+        text="prefix\x00suffix",
+        source_url="https://github.com/thingso/demo/blob/main/example.txt",
+        ref="main",
+        document_type="documentation",
+    )
+    expected = make_source_document(
+        text="prefixsuffix",
+        source_url="https://github.com/thingso/demo/blob/main/example.txt",
+        ref="main",
+        document_type="documentation",
+    )
+
+    assert document.text == "prefixsuffix"
+    assert "\x00" not in document.text
+    assert document.content_hash == expected.content_hash

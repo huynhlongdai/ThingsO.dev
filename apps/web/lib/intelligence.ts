@@ -193,6 +193,7 @@ export type RepositoryIntelligenceV3 = {
   provider: string;
   model: string;
   createdAt: string;
+  isCurrentSnapshot: boolean;
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -241,7 +242,13 @@ function complexity(value: unknown): Complexity {
 
 export function parseRepositoryIntelligence(
   value: unknown,
-  metadata: { provider: string; model: string; createdAt: string; confidence: number | null },
+  metadata: {
+    provider: string;
+    model: string;
+    createdAt: string;
+    confidence: number | null;
+    isCurrentSnapshot?: boolean;
+  },
 ): RepositoryIntelligenceV3 | null {
   const root = record(value);
   if (root.schema_version !== "repo-intelligence-v3") return null;
@@ -457,5 +464,6 @@ export function parseRepositoryIntelligence(
     provider: metadata.provider,
     model: metadata.model,
     createdAt: metadata.createdAt,
+    isCurrentSnapshot: metadata.isCurrentSnapshot ?? true,
   };
 }

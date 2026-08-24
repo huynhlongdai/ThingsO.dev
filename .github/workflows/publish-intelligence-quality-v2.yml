@@ -1,0 +1,154 @@
+name: Publish intelligence quality v2
+
+on:
+  workflow_run:
+    workflows: ["Deploy production"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: thingso-intelligence-quality-v2
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  change-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.gate.outputs.needed }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+    steps:
+      - name: Decide whether quality publication is needed
+        id: gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const manual = context.eventName === 'workflow_dispatch';
+            const run = context.payload.workflow_run;
+            const headSha = manual ? context.sha : run.head_sha;
+            core.setOutput('head_sha', headSha);
+            if (manual) {
+              core.setOutput('needed', 'true');
+              return;
+            }
+            if (run.conclusion !== 'success' || run.head_branch !== 'main') {
+              core.setOutput('needed', 'false');
+              return;
+            }
+            const response = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: headSha,
+              per_page: 100,
+            });
+            const watched = [
+              'apps/worker/src/thingso_worker/quality_editorial.py',
+              'apps/worker/scripts/generate_quality_intelligence.py',
+              'apps/worker/scripts/import_quality_intelligence.py',
+              'data/seeds/repositories.csv',
+              '.github/workflows/publish-intelligence-quality-v2.yml',
+            ];
+            const files = (response.data.files || []).map(file => file.filename);
+            core.setOutput('needed', files.some(file => watched.includes(file)) ? 'true' : 'false');
+
+  publish:
+    needs: change-gate
+    if: needs.change-gate.outputs.needed == 'true'
+    runs-on: self-hosted
+    timeout-minutes: 90
+    environment: production
+
+    steps:
+      - name: Locate deployed production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$HOME/thingso-prod"
+          RELEASE="$(readlink -f "$ROOT/current")"
+          ENV_FILE="$ROOT/shared/.env.production"
+          DEPLOYED_SHA="$(cat "$ROOT/current-sha")"
+          EXPECTED_SHA="${{ needs.change-gate.outputs.head_sha }}"
+          test "$DEPLOYED_SHA" = "$EXPECTED_SHA"
+          test -d "$RELEASE"
+          test -f "$ENV_FILE"
+          echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
+          echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
+
+      - name: Validate curated 100
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker \
+            sh -lc 'uv run --project apps/worker python -m thingso_worker seed-check data/seeds/repositories.csv'
+
+      - name: Check current quality-v2 coverage
+        id: coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          COUNT="$(docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = '\''repository_intelligence'\'' AND a.schema_version = '\''repo-intelligence-v3'\'' AND a.model_provider = '\''editorial'\'' AND a.model_name = '\''evidence-editorial-quality-v2'\'' AND a.prompt_version = '\''manual-intelligence-v3-quality-v2'\'' AND a.review_status = '\''approved'\'' AND a.source_snapshot_id = r.current_snapshot_id;"')"
+          echo "approved=$COUNT"
+          echo "approved=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and import evidence-first quality profiles
+        if: steps.coverage.outputs.approved < 100
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker sh -lc '
+              set -eu
+              uv run --project apps/worker python apps/worker/scripts/generate_quality_intelligence.py \
+                --seed data/seeds/repositories.csv \
+                --output /tmp/editorial-quality-v2.json
+              uv run --project apps/worker python apps/worker/scripts/import_quality_intelligence.py \
+                /tmp/editorial-quality-v2.json
+            '
+
+      - name: Quality-v2 production gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          query_db() {
+            docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"$1\""
+          }
+          TOTAL="$(query_db 'SELECT count(*) FROM repositories WHERE current_snapshot_id IS NOT NULL;')"
+          QUALITY="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.model_name = 'evidence-editorial-quality-v2' AND a.prompt_version = 'manual-intelligence-v3-quality-v2' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          REVIEW="$(query_db "SELECT count(*) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.model_name = 'evidence-editorial-quality-v2' AND a.prompt_version = 'manual-intelligence-v3-quality-v2' AND a.source_snapshot_id = r.current_snapshot_id AND a.review_status <> 'approved';")"
+          echo "Current repositories: $TOTAL"
+          echo "Approved quality-v2 profiles: $QUALITY"
+          echo "Non-approved quality-v2 profiles: $REVIEW"
+          {
+            echo "## ThingsO Intelligence Quality v2"
+            echo "- Current repositories: $TOTAL"
+            echo "- Approved quality-v2 profiles: $QUALITY"
+            echo "- Non-approved current quality-v2 profiles: $REVIEW"
+            echo "- Semantic duplicate gate: passed during generation"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$TOTAL" -ge 100
+          test "$QUALITY" -ge 100
+          test "$REVIEW" -eq 0
+
+      - name: Production health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --max-time 20 https://thingso.dev/api/health

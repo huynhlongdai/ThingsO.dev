@@ -108,6 +108,31 @@ test("use-case pages rank the selected reviewed fit rather than an unrelated top
   assert.match(card, /Compare this repository/);
 });
 
+test("implementation blueprint is current-v3, evidence-backed and fail-closed", async () => {
+  const blueprint = await source("../app/repos/[owner]/[name]/blueprint/page.tsx");
+  const repoPage = await source("../app/repos/[owner]/[name]/page.tsx");
+  const intelligenceData = await source("../lib/intelligence-data.ts");
+
+  assert.match(blueprint, /getRepositoryIntelligence/);
+  assert.match(blueprint, /if \(!repo \|\| !intelligence\) notFound\(\)/);
+  assert.match(blueprint, /Build · evidence-backed blueprint/);
+  assert.match(blueprint, /Decision gate/);
+  assert.match(blueprint, /Local proof/);
+  assert.match(blueprint, /Architecture/);
+  assert.match(blueprint, /Integration/);
+  assert.match(blueprint, /Production/);
+  assert.match(blueprint, /Security & privacy/);
+  assert.match(blueprint, /Evidence selectors/);
+  assert.match(blueprint, /Unknown fields are intentionally preserved/);
+  assert.match(blueprint, /ProvenanceBadge kind="editorial"/);
+  assert.doesNotMatch(blueprint, /build_ideas|listBuildIdeas|getBuildIdea/);
+
+  assert.match(repoPage, /Build Blueprint →/);
+  assert.match(repoPage, /intelligence \? <Link href=\{`\/repos\/\$\{repo\.owner\}\/\$\{repo\.name\}\/blueprint`\}/);
+  assert.match(intelligenceData, /a\.review_status = 'approved'/);
+  assert.match(intelligenceData, /a\.source_snapshot_id = r\.current_snapshot_id/);
+});
+
 test("public API and SEO routes exist", async () => {
   const searchApi = await source("../app/api/search/route.ts");
   const healthApi = await source("../app/api/health/route.ts");

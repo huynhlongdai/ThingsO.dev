@@ -32,6 +32,12 @@
 .source-list a { color: var(--accent); overflow-wrap: anywhere; }
 .muted { color: var(--muted) !important; font-size: .85rem; }
 .json-panel { overflow: auto; max-height: 520px; padding: 18px; border-radius: 12px; background: #080c12; border: 1px solid var(--border); color: #c7d4e7; white-space: pre-wrap; }
+.search-filters { display: grid; gap: 12px; }
+.search-filters label { display: grid; gap: 7px; }
+.search-filters label > span { padding: 0; border: 0; color: var(--muted); font-size: .74rem; }
+.search-filters select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: #101620; color: var(--text); }
+.search-filters button { padding: 10px 12px; border: 1px solid var(--accent); border-radius: 9px; background: var(--accent); color: #061018; font: inherit; font-weight: 750; cursor: pointer; }
+.search-filters a { color: var(--accent); font-size: .8rem; }
 .compare-picker { margin-top: 28px; padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: rgba(12,16,24,.7); }
 .compare-picker__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .compare-picker label { display: grid; gap: 7px; color: var(--muted); font-size: .78rem; }
@@ -55,6 +61,7 @@ code { padding: 2px 5px; border-radius: 5px; background: #171f2e; color: #c8d8f2
   .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .idea-grid, .detail-columns { grid-template-columns: 1fr; }
   .compare-picker__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .search-page .filter-panel { display: flex; }
 }
 @media (max-width: 620px) {
   .repo-detail__hero { grid-template-columns: 1fr; }

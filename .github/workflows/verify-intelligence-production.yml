@@ -1,0 +1,98 @@
+name: Verify production intelligence
+
+on:
+  workflow_run:
+    workflows: ["Publish intelligence evidence-only v1"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: thingso-production-intelligence-qa
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      }}
+    runs-on: self-hosted
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Locate production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$HOME/thingso-prod"
+          RELEASE="$(readlink -f "$ROOT/current")"
+          ENV_FILE="$ROOT/shared/.env.production"
+          test -d "$RELEASE"
+          test -f "$ENV_FILE"
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            EXPECTED_SHA="${{ github.event.workflow_run.head_sha }}"
+            DEPLOYED_SHA="$(cat "$ROOT/current-sha")"
+            test "$DEPLOYED_SHA" = "$EXPECTED_SHA"
+          fi
+
+          echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
+          echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
+
+      - name: Audit persisted evidence-only profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker \
+            sh -lc 'uv run --project apps/worker python apps/worker/scripts/qa_published_intelligence.py' \
+            | tee /tmp/thingso-intelligence-qa.json
+
+          {
+            echo "## Post-publication semantic QA"
+            echo '```json'
+            cat /tmp/thingso-intelligence-qa.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify TradingAgents public page
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE=/tmp/thingso-tradingagents.html
+          curl --fail --show-error --silent --location --max-time 30 \
+            https://thingso.dev/repos/TauricResearch/TradingAgents \
+            -o "$PAGE"
+
+          if grep -Fqi "Its curated role in the ThingsO catalog" "$PAGE"; then
+            echo "Legacy category-template phrase is still visible on the public page."
+            exit 1
+          fi
+          if grep -Fqi "exact implementation differentiation is verified" "$PAGE"; then
+            echo "Legacy differentiation boilerplate is still visible on the public page."
+            exit 1
+          fi
+
+          echo "TradingAgents public route: HTTP 200"
+          echo "Legacy semantic phrases: absent"
+          {
+            echo "## TradingAgents public-page QA"
+            echo "- Route: /repos/TauricResearch/TradingAgents"
+            echo "- HTTP: 200"
+            echo "- Legacy category-template phrases: absent"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Production health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --max-time 20 https://thingso.dev/api/health

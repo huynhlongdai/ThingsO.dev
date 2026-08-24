@@ -1,0 +1,43 @@
+name: Evidence export
+
+on:
+  pull_request:
+    paths:
+      - "apps/worker/src/thingso_worker/evidence_pack.py"
+      - "apps/worker/src/thingso_worker/github_client.py"
+      - "apps/worker/scripts/export_public_evidence.py"
+      - ".github/workflows/evidence-export.yml"
+      - "data/seeds/repositories.csv"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --project apps/worker --extra dev
+      - name: Collect evidence for curated 100
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          uv run --project apps/worker python
+          apps/worker/scripts/export_public_evidence.py
+          --seed data/seeds/repositories.csv
+          --output evidence-packs.json
+          --min-success 95
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repository-evidence-packs
+          path: evidence-packs.json
+          if-no-files-found: error
+          retention-days: 3

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { RepositoryCard } from "@/components/repository-card";
 import { SiteHeader } from "@/components/site-header";
-import { listRepositories, listTaxonomyTerms, listUseCases } from "@/lib/data";
+import { listRepositories, listTaxonomyTerms } from "@/lib/data";
+import { listReviewedUseCases } from "@/lib/use-case-data";
 import { toRepositoryCard } from "@/lib/view-models";
 
 export const metadata = { title: "Discover" };
@@ -10,7 +11,7 @@ export const revalidate = 300;
 export default async function DiscoverPage() {
   const [categories, useCases, repositories] = await Promise.all([
     listTaxonomyTerms("capability"),
-    listUseCases(),
+    listReviewedUseCases(),
     listRepositories(24),
   ]);
 
@@ -22,7 +23,7 @@ export default async function DiscoverPage() {
           <p className="eyebrow">Curated discovery</p>
           <h1>Explore software by capability and use case.</h1>
           <p className="lede">
-            Facts come from captured repository snapshots. AI classifications appear only after review.
+            Facts come from captured repository snapshots. Inferred use-case fit appears only after review.
           </p>
           <div className="category-list">
             {categories.slice(0, 18).map((category) => (
@@ -35,7 +36,7 @@ export default async function DiscoverPage() {
             <div className="category-list">
               {useCases.slice(0, 10).map((useCase) => (
                 <Link key={useCase.slug} href={`/use-cases/${useCase.slug}`}>
-                  {useCase.title} · {useCase.repositoryCount}
+                  {useCase.title} · {useCase.repositoryCount} reviewed
                 </Link>
               ))}
             </div>

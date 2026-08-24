@@ -108,6 +108,21 @@ test("use-case pages rank the selected reviewed fit rather than an unrelated top
   assert.match(card, /Compare this repository/);
 });
 
+test("home, discover and sitemap publish only reviewed use cases", async () => {
+  const home = await source("../app/page.tsx");
+  const discover = await source("../app/discover/page.tsx");
+  const sitemap = await source("../app/sitemap.ts");
+  const data = await source("../lib/use-case-data.ts");
+
+  for (const text of [home, discover, sitemap]) {
+    assert.match(text, /listReviewedUseCases/);
+    assert.doesNotMatch(text, /listUseCases/);
+  }
+  assert.match(home, /fallbackSearches/);
+  assert.match(discover, /reviewed/);
+  assert.match(data, /ru\.source_type IN \('ai', 'editorial'\) AND ru\.reviewed = true/);
+});
+
 test("implementation blueprint is current-v3, evidence-backed and fail-closed", async () => {
   const blueprint = await source("../app/repos/[owner]/[name]/blueprint/page.tsx");
   const repoPage = await source("../app/repos/[owner]/[name]/page.tsx");

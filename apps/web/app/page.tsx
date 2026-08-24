@@ -2,7 +2,8 @@ import Link from "next/link";
 import { IntentSearch } from "@/components/intent-search";
 import { RepositoryCard } from "@/components/repository-card";
 import { SiteHeader } from "@/components/site-header";
-import { listRepositories, listUseCases } from "@/lib/data";
+import { listRepositories } from "@/lib/data";
+import { listReviewedUseCases } from "@/lib/use-case-data";
 import { toRepositoryCard } from "@/lib/view-models";
 
 const fallbackSearches = [
@@ -17,7 +18,7 @@ const fallbackSearches = [
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [repositories, useCases] = await Promise.all([listRepositories(6), listUseCases()]);
+  const [repositories, useCases] = await Promise.all([listRepositories(6), listReviewedUseCases()]);
   const searches = useCases.length ? useCases.slice(0, 6).map((item) => item.title) : fallbackSearches;
 
   return (

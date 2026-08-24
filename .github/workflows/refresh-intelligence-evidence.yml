@@ -61,15 +61,37 @@ jobs:
             --env-file "$THINGSO_ENV_FILE" \
             -f deploy/compose.prod.yml \
             run --rm worker sh -lc '
-              set -eu
+              set -u
               total=0
               failed=0
-              tail -n +2 data/seeds/repositories.csv | while IFS=, read -r full_name category priority; do
+              tail -n +2 data/seeds/repositories.csv > /tmp/thingso-repositories.csv
+              while IFS=, read -r full_name category priority; do
                 [ -n "$full_name" ] || continue
                 total=$((total + 1))
                 echo "[$total/100] refresh $full_name"
-                uv run --project apps/worker python -m thingso_worker ingest "$full_name" || failed=$((failed + 1))
-              done
+
+                attempt=1
+                succeeded=0
+                while [ "$attempt" -le 3 ]; do
+                  if uv run --project apps/worker python -m thingso_worker ingest "$full_name"; then
+                    succeeded=1
+                    break
+                  fi
+                  echo "retry $attempt/3 for $full_name" >&2
+                  sleep $((attempt * 15))
+                  attempt=$((attempt + 1))
+                done
+
+                if [ "$succeeded" -ne 1 ]; then
+                  echo "FAILED $full_name after 3 attempts" >&2
+                  failed=$((failed + 1))
+                fi
+              done < /tmp/thingso-repositories.csv
+
+              echo "Evidence refresh processed: $total"
+              echo "Evidence refresh failures: $failed"
+              test "$total" -eq 100
+              test "$failed" -eq 0
             '
 
       - name: Evidence quality gate

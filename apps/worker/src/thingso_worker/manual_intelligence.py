@@ -19,7 +19,7 @@ from .intelligence_models import RepositoryIntelligenceProfileV3
 PROVIDER = "editorial"
 MODEL = "chatgpt-gpt-5.6-sol-manual"
 REVIEW_MODEL = "deterministic-intelligence-review-v3"
-PROMPT_VERSION = "manual-intelligence-v3"
+PROMPT_VERSION = "manual-intelligence-v3-usecases-v1"
 ANALYSIS_TYPE = "repository_intelligence"
 
 CORE_CONFIDENCE_SECTIONS = (

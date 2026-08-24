@@ -1,0 +1,208 @@
+name: Activate production data
+
+on:
+  workflow_run:
+    workflows: ["Deploy production"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: thingso-data-activation
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  activate:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      }}
+    name: Seed and ingest curated repositories
+    runs-on: self-hosted
+    timeout-minutes: 120
+    environment: production
+    env:
+      GH_RUNTIME_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Locate production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$HOME/thingso-prod"
+          RELEASE="$(readlink -f "$ROOT/current")"
+          ENV_FILE="$ROOT/shared/.env.production"
+          test -d "$RELEASE"
+          test -f "$ENV_FILE"
+          echo "THINGSO_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
+          echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
+
+      - name: Validate curated seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker \
+            sh -lc 'uv run --project apps/worker python -m thingso_worker seed-check data/seeds/repositories.csv'
+
+      - name: Inspect existing ingestion state
+        id: state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          EXISTING="$(docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(*) FROM ingestion_jobs WHERE job_type = '\''ingest_repository'\'';"')"
+          REPOS="$(docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(*) FROM repositories;"')"
+          echo "existing_jobs=$EXISTING"
+          echo "repositories=$REPOS"
+          echo "existing_jobs=$EXISTING" >> "$GITHUB_OUTPUT"
+
+      - name: Start worker with temporary GitHub Actions token
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          export GITHUB_TOKEN="$GH_RUNTIME_TOKEN"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            up -d --force-recreate worker
+
+      - name: Enqueue first 100 repositories
+        if: steps.state.outputs.existing_jobs == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          export GITHUB_TOKEN="$GH_RUNTIME_TOKEN"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker \
+            sh -lc 'uv run --project apps/worker python -m thingso_worker enqueue-seed data/seeds/repositories.csv'
+
+      - name: Monitor ingestion queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          for attempt in $(seq 1 360); do
+            SUMMARY="$(docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F"," -c "SELECT status,count(*) FROM ingestion_jobs WHERE job_type = '\''ingest_repository'\'' GROUP BY status ORDER BY status;"')"
+            echo "--- ingestion status $(date -u +%FT%TZ) ---"
+            printf '%s\n' "$SUMMARY"
+
+            NONTERMINAL="$(docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(*) FROM ingestion_jobs WHERE job_type = '\''ingest_repository'\'' AND status IN ('\''queued'\'','\''running'\'','\''retry'\'');"')"
+            TOTAL="$(docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(*) FROM ingestion_jobs WHERE job_type = '\''ingest_repository'\'';"')"
+
+            if [ "$TOTAL" -ge 100 ] && [ "$NONTERMINAL" -eq 0 ]; then
+              echo "Ingestion queue reached a terminal state."
+              exit 0
+            fi
+            sleep 15
+          done
+
+          echo "Timed out waiting for ingestion to complete."
+          exit 1
+
+      - name: Production data quality gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+
+          read_metric() {
+            docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"$1\""
+          }
+
+          REPOSITORIES="$(read_metric 'SELECT count(*) FROM repositories;')"
+          SCORED="$(read_metric "SELECT count(DISTINCT repository_id) FROM repository_scores WHERE score_version = 'health-v1';")"
+          DOCUMENTS="$(read_metric 'SELECT count(*) FROM source_documents;')"
+          EDITORIAL="$(read_metric "SELECT count(DISTINCT repository_id) FROM repository_taxonomy WHERE source_type = 'editorial';")"
+          SUCCEEDED="$(read_metric "SELECT count(*) FROM ingestion_jobs WHERE job_type = 'ingest_repository' AND status = 'succeeded';")"
+          FAILED="$(read_metric "SELECT count(*) FROM ingestion_jobs WHERE job_type = 'ingest_repository' AND status IN ('failed','dead');")"
+
+          echo "repositories=$REPOSITORIES"
+          echo "scored=$SCORED"
+          echo "source_documents=$DOCUMENTS"
+          echo "editorial_taxonomy=$EDITORIAL"
+          echo "ingestion_succeeded=$SUCCEEDED"
+          echo "ingestion_failed_or_dead=$FAILED"
+
+          {
+            echo "## ThingsO production data activation"
+            echo "- Repositories: $REPOSITORIES"
+            echo "- Health scored: $SCORED"
+            echo "- Source documents: $DOCUMENTS"
+            echo "- Editorial taxonomy assigned: $EDITORIAL"
+            echo "- Ingestion succeeded: $SUCCEEDED"
+            echo "- Ingestion failed/dead: $FAILED"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$REPOSITORIES" -lt 90 ]; then
+            echo "Quality gate failed: fewer than 90 repositories ingested."
+            exit 1
+          fi
+          if [ "$SCORED" -lt 90 ]; then
+            echo "Quality gate failed: fewer than 90 repositories have health-v1 scores."
+            exit 1
+          fi
+
+      - name: Show failed repositories
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT payload_json->>'\''full_name'\'' AS repository,status,attempt_count,left(coalesce(error,'\'''\''),180) AS error FROM ingestion_jobs WHERE job_type = '\''ingest_repository'\'' AND status IN ('\''failed'\'','\''dead'\'') ORDER BY updated_at DESC;"'
+
+      - name: Restore worker without temporary token
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          cd "$THINGSO_RELEASE"
+          unset GITHUB_TOKEN
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            up -d --force-recreate worker
+
+      - name: Final service health
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml ps
+          curl --fail --show-error --silent --max-time 20 https://thingso.dev/api/health

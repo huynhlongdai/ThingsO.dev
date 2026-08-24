@@ -79,11 +79,12 @@ def normalize_languages(payload: dict[str, int]) -> list[LanguageFact]:
 
 
 def make_source_document(*, text: str, source_url: str, ref: str | None, document_type: str = "readme") -> SourceDocument:
-    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    clean_text = text.replace("\x00", "")
+    digest = hashlib.sha256(clean_text.encode("utf-8")).hexdigest()
     return SourceDocument(
         document_type=document_type,
         source_url=source_url,
         ref=ref,
         content_hash=digest,
-        text=text,
+        text=clean_text,
     )

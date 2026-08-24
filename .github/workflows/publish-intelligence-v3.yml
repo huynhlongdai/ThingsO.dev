@@ -1,0 +1,121 @@
+name: Publish repository intelligence v3
+
+on:
+  workflow_run:
+    workflows: ["Refresh intelligence evidence"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: thingso-repository-intelligence-v3
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      }}
+    runs-on: self-hosted
+    timeout-minutes: 60
+    environment: production
+
+    steps:
+      - name: Locate production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$HOME/thingso-prod"
+          RELEASE="$(readlink -f "$ROOT/current")"
+          ENV_FILE="$ROOT/shared/.env.production"
+          test -d "$RELEASE"
+          test -f "$ENV_FILE"
+          echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
+          echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
+
+      - name: Validate curated 100
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker \
+            sh -lc 'uv run --project apps/worker python -m thingso_worker seed-check data/seeds/repositories.csv'
+
+      - name: Generate and publish V3 intelligence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            run --rm worker sh -lc '
+              set -eu
+              uv run --project apps/worker python apps/worker/scripts/generate_editorial_baseline.py \
+                --seed data/seeds/repositories.csv \
+                --output /tmp/editorial-baseline-v3.json
+              uv run --project apps/worker python apps/worker/scripts/import_manual_intelligence.py \
+                /tmp/editorial-baseline-v3.json
+            ' | tee /tmp/thingso-intelligence-v3-publish.log
+
+      - name: Repository Intelligence V3 quality gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$THINGSO_RELEASE"
+
+          query_db() {
+            docker compose -p thingso-prod \
+              --env-file "$THINGSO_ENV_FILE" \
+              -f deploy/compose.prod.yml \
+              exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"$1\""
+          }
+
+          APPROVED="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          TOTAL_REPOS="$(query_db 'SELECT count(*) FROM repositories WHERE current_snapshot_id IS NOT NULL;')"
+          WITH_TREE="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type = 'repository_tree';")"
+          WITH_TECH="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type IN ('manifest','container','configuration','contributing','security','architecture','ci','documentation','source_entrypoint');")"
+
+          echo "Current repositories: $TOTAL_REPOS"
+          echo "Approved current V3 profiles: $APPROVED"
+          echo "Tree evidence coverage: $WITH_TREE"
+          echo "Technical evidence coverage: $WITH_TECH"
+
+          {
+            echo "## ThingsO Repository Intelligence V3"
+            echo "- Current repositories: $TOTAL_REPOS"
+            echo "- Approved V3 profiles on current snapshots: $APPROVED"
+            echo "- Repository tree coverage: $WITH_TREE"
+            echo "- Technical evidence coverage: $WITH_TECH"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          test "$TOTAL_REPOS" -ge 100
+          test "$WITH_TREE" -ge 100
+          test "$WITH_TECH" -ge 100
+          test "$APPROVED" -ge 100
+
+      - name: Show repositories without an approved current V3 profile
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          cd "$THINGSO_RELEASE"
+          docker compose -p thingso-prod \
+            --env-file "$THINGSO_ENV_FILE" \
+            -f deploy/compose.prod.yml \
+            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT r.full_name FROM repositories r WHERE r.current_snapshot_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ai_analyses a WHERE a.repository_id = r.id AND a.source_snapshot_id = r.current_snapshot_id AND a.analysis_type = '\''repository_intelligence'\'' AND a.schema_version = '\''repo-intelligence-v3'\'' AND a.model_provider = '\''editorial'\'' AND a.review_status = '\''approved'\'') ORDER BY r.full_name LIMIT 200;"'
+
+      - name: Production health check
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --max-time 20 https://thingso.dev/api/health

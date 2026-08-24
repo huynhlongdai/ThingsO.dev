@@ -3,6 +3,10 @@ name: Refresh intelligence evidence
 on:
   schedule:
     - cron: "17 2 * * *"
+  workflow_run:
+    workflows: ["Deploy production"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +17,53 @@ permissions:
   contents: read
 
 jobs:
+  change-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.gate.outputs.needed }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+    steps:
+      - name: Decide whether refresh is needed
+        id: gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const recurring = context.eventName === 'schedule' || context.eventName === 'workflow_dispatch';
+            if (recurring) {
+              core.setOutput('head_sha', context.sha);
+              core.setOutput('needed', 'true');
+              return;
+            }
+
+            const run = context.payload.workflow_run;
+            core.setOutput('head_sha', run.head_sha);
+            if (run.conclusion !== 'success' || run.head_branch !== 'main') {
+              core.setOutput('needed', 'false');
+              return;
+            }
+
+            const response = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: run.head_sha,
+              per_page: 100,
+            });
+            const watched = [
+              'apps/worker/src/thingso_worker/evidence_pack.py',
+              'apps/worker/src/thingso_worker/quality_editorial.py',
+              'apps/worker/src/thingso_worker/semantic_depth.py',
+              'apps/worker/scripts/generate_quality_intelligence.py',
+              'apps/worker/scripts/import_quality_intelligence.py',
+              'data/seeds/repositories.csv',
+              '.github/workflows/refresh-intelligence-evidence.yml',
+              '.github/workflows/publish-intelligence-quality-v2.yml',
+            ];
+            const files = (response.data.files || []).map(file => file.filename);
+            core.setOutput('needed', files.some(file => watched.includes(file)) ? 'true' : 'false');
+
   refresh:
+    needs: change-gate
+    if: needs.change-gate.outputs.needed == 'true'
     runs-on: self-hosted
     timeout-minutes: 120
     environment: production
@@ -30,6 +80,13 @@ jobs:
           ENV_FILE="$ROOT/shared/.env.production"
           test -d "$RELEASE"
           test -f "$ENV_FILE"
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            DEPLOYED_SHA="$(cat "$ROOT/current-sha")"
+            EXPECTED_SHA="${{ needs.change-gate.outputs.head_sha }}"
+            test "$DEPLOYED_SHA" = "$EXPECTED_SHA"
+          fi
+
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 
@@ -44,7 +101,7 @@ jobs:
             run --rm worker \
             sh -lc 'uv run --project apps/worker python -m thingso_worker seed-check data/seeds/repositories.csv'
 
-      - name: Refresh Evidence Pack v2 for curated 100
+      - name: Refresh Evidence Pack v3 for curated 100
         shell: bash
         run: |
           set -euo pipefail
@@ -102,7 +159,9 @@ jobs:
           REPOS="$(query_db 'SELECT count(*) FROM repositories WHERE current_snapshot_id IS NOT NULL;')"
           README="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type = 'readme';")"
           TREES="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type = 'repository_tree';")"
-          TECHNICAL="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type IN ('manifest','container','configuration','contributing','security','architecture','ci','documentation','source_entrypoint');")"
+          TECHNICAL="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type IN ('manifest','container','configuration','contributing','security','architecture','ci','documentation','source_entrypoint','changelog');")"
+          SOURCE_ENTRY="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type = 'source_entrypoint';")"
+          EVOLUTION="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type = 'changelog';")"
           PACK3="$(query_db "SELECT count(*) FROM (SELECT repository_id FROM source_documents GROUP BY repository_id HAVING count(DISTINCT document_type) >= 3) q;")"
           DOCS="$(query_db 'SELECT count(*) FROM source_documents;')"
 
@@ -110,15 +169,19 @@ jobs:
           echo "README coverage: $README"
           echo "Tree coverage: $TREES"
           echo "Technical evidence coverage: $TECHNICAL"
+          echo "Source-entrypoint coverage: $SOURCE_ENTRY"
+          echo "Evolution/changelog coverage: $EVOLUTION"
           echo "Repositories with >=3 evidence document types: $PACK3"
           echo "Total source documents: $DOCS"
 
           {
-            echo "## ThingsO Evidence Pack v2"
+            echo "## ThingsO Evidence Pack v3"
             echo "- Repositories: $REPOS"
             echo "- README coverage: $README"
             echo "- Repository tree coverage: $TREES"
             echo "- Technical evidence coverage: $TECHNICAL"
+            echo "- Source-entrypoint coverage: $SOURCE_ENTRY"
+            echo "- Evolution/changelog coverage: $EVOLUTION"
             echo "- >=3 evidence types: $PACK3"
             echo "- Source documents: $DOCS"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -52,7 +52,7 @@ test("comparison is current-v3 and decision-first", async () => {
   assert.match(intelligenceData, /a\.source_snapshot_id = r\.current_snapshot_id/);
 });
 
-test("search ranks current Repository Intelligence v3 and supports decision filters", async () => {
+test("search ranks current Repository Intelligence v3 and preserves reviewed fit provenance", async () => {
   const page = await source("../app/search/page.tsx");
   const search = await source("../lib/search-v3.ts");
   const card = await source("../components/repository-card.tsx");
@@ -70,11 +70,42 @@ test("search ranks current Repository Intelligence v3 and supports decision filt
   assert.match(search, /choose_when/);
   assert.match(search, /evaluate_first/);
   assert.match(search, /score\.total_score >= \$4/);
+  assert.match(search, /ru\.source_type IN \('ai', 'editorial'\) AND ru\.reviewed = true/);
+  assert.match(search, /fit\.source_type AS fit_source/);
+  assert.match(search, /fitSource: fitSource\(row\.fit_source\)/);
 
-  assert.match(card, /summarySource === "editorial"/);
+  assert.match(card, /provenanceKind\(repo\.fitSource\)/);
+  assert.match(card, /repo\.fitReason && repo\.fitSource/);
+  assert.doesNotMatch(card, /ProvenanceBadge kind="ai_inference" \/>/);
   assert.match(searchApi, /searchRepositoriesV3/);
   assert.match(searchApi, /category/);
   assert.match(searchApi, /minHealth/);
+});
+
+test("use-case pages rank the selected reviewed fit rather than an unrelated top fit", async () => {
+  const page = await source("../app/use-cases/[slug]/page.tsx");
+  const index = await source("../app/use-cases/page.tsx");
+  const data = await source("../lib/use-case-data.ts");
+  const card = await source("../components/repository-card.tsx");
+
+  assert.match(index, /listReviewedUseCases/);
+  assert.match(index, /reviewed matches/);
+  assert.match(page, /getReviewedUseCase/);
+  assert.match(page, /fitScore: repo\.fitScore/);
+  assert.match(page, /fitSource: repo\.fitSource/);
+  assert.match(page, /showCompareAction: true/);
+  assert.match(page, /Rank \$\{index \+ 1\}/);
+
+  assert.match(data, /selected_ru\.fit_score/);
+  assert.match(data, /selected_ru\.reason AS fit_reason/);
+  assert.match(data, /selected_ru\.source_type AS fit_source/);
+  assert.match(data, /selected_u\.slug = \$1/);
+  assert.match(data, /selected_ru\.source_type IN \('ai', 'editorial'\) AND selected_ru\.reviewed = true/);
+  assert.match(data, /a\.model_provider = 'editorial'/);
+  assert.match(data, /a\.source_snapshot_id = r\.current_snapshot_id/);
+
+  assert.match(card, /Math\.round\(repo\.fitScore \* 100\)/);
+  assert.match(card, /Compare this repository/);
 });
 
 test("public API and SEO routes exist", async () => {

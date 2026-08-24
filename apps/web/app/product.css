@@ -39,6 +39,27 @@
 .source-list a { color: var(--accent); overflow-wrap: anywhere; }
 .muted { color: var(--muted) !important; font-size: .85rem; }
 .json-panel { overflow: auto; max-height: 520px; padding: 18px; border-radius: 12px; background: #080c12; border: 1px solid var(--border); color: #c7d4e7; white-space: pre-wrap; }
+.blueprint-page { max-width: 1100px; }
+.blueprint-hero { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 36px; align-items: end; }
+.blueprint-hero h1 { font-size: clamp(2.7rem, 6vw, 5.5rem); }
+.blueprint-meta { display: grid; gap: 8px; color: var(--muted); font-size: .8rem; }
+.blueprint-meta .provenance { width: fit-content; }
+.blueprint-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.blueprint-actions a { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--accent); }
+.blueprint-phase { display: grid; gap: 22px; }
+.blueprint-phase__heading { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 16px; align-items: start; }
+.blueprint-phase__heading > span { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid #41506b; border-radius: 11px; background: #111827; color: var(--accent); font-weight: 850; }
+.blueprint-phase__heading .eyebrow { margin-bottom: 8px; }
+.blueprint-phase__heading h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); }
+.blueprint-claims-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.blueprint-claim { display: grid; gap: 7px; padding: 16px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: #101620; }
+.blueprint-claim > span { color: #b6c1d1; line-height: 1.55; }
+.blueprint-claim small { color: var(--muted); }
+.blueprint-checklist { margin: 0; padding-left: 20px; }
+.blueprint-checklist li + li { margin-top: 7px; }
+.blueprint-evidence { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.07); }
+.blueprint-evidence code { overflow-wrap: anywhere; }
+.blueprint-phase--final { border-color: #41506b; }
 .search-filters { display: grid; gap: 12px; }
 .search-filters label { display: grid; gap: 7px; }
 .search-filters label > span { padding: 0; border: 0; color: var(--muted); font-size: .74rem; }
@@ -66,7 +87,8 @@
 code { padding: 2px 5px; border-radius: 5px; background: #171f2e; color: #c8d8f2; }
 @media (max-width: 900px) {
   .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .idea-grid, .detail-columns { grid-template-columns: 1fr; }
+  .idea-grid, .detail-columns, .blueprint-claims-grid { grid-template-columns: 1fr; }
+  .blueprint-hero { grid-template-columns: 1fr; }
   .compare-picker__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .search-page .filter-panel { display: flex; }
 }

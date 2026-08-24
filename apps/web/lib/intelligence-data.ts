@@ -7,9 +7,11 @@ import {
 export async function getRepositoryIntelligence(
   owner: string,
   name: string,
+  options: { allowStale?: boolean } = {},
 ): Promise<RepositoryIntelligenceV3 | null> {
   if (!isDatabaseConfigured()) return null;
   const fullName = `${owner}/${name}`.slice(0, 180);
+  const allowStale = options.allowStale === true;
   const rows = await query<{
     output_json: Record<string, unknown>;
     confidence: string | number | null;
@@ -31,9 +33,10 @@ export async function getRepositoryIntelligence(
        AND a.analysis_type = 'repository_intelligence'
        AND a.schema_version = 'repo-intelligence-v3'
        AND a.review_status = 'approved'
+       AND ($2::boolean OR a.source_snapshot_id = r.current_snapshot_id)
      ORDER BY (a.source_snapshot_id = r.current_snapshot_id) DESC, a.created_at DESC
      LIMIT 1`,
-    [fullName],
+    [fullName, allowStale],
   );
   const row = rows[0];
   if (!row) return null;

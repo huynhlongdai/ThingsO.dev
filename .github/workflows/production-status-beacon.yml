@@ -1,0 +1,36 @@
+name: Production status beacon
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy production
+      - Refresh intelligence evidence
+      - Publish repository intelligence v3
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report rollout status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const body = [
+              `### ${run.name}`,
+              `- Conclusion: **${run.conclusion}**`,
+              `- Head: \`${run.head_branch}\` @ \`${run.head_sha.slice(0, 12)}\``,
+              `- Run: ${run.html_url}`,
+              `- Completed: ${run.updated_at}`,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 19,
+              body,
+            });

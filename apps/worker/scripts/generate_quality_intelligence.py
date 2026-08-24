@@ -22,11 +22,19 @@ def validate_entry(entry: dict[str, object]) -> dict[str, object]:
     solution = str(problem.get("solution_approach") or "").strip()
     if len(solution) < 20:
         problem["solution_approach"] = (
-            "The current repository evidence establishes the project scope; "
-            "use the Architecture, Technology, Codebase, and Developer Workflow sections "
-            "for evidence-backed implementation details."
+            f"A more specific solution approach for {full_name} is not established "
+            "from the current bounded evidence pack."
         )
         profile["problem"] = problem
+
+    # Overall confidence includes evidence coverage. Unsupported sections contribute zero
+    # instead of being silently excluded from the average, so a sparse profile cannot show
+    # an inflated 80–90% overall confidence merely because a few deterministic facts are strong.
+    section_confidence = profile.get("section_confidence")
+    if isinstance(section_confidence, dict) and section_confidence:
+        values = list(section_confidence.values())
+        score = sum(float(value) if isinstance(value, (int, float)) else 0.0 for value in values) / len(values)
+        profile["confidence"] = round(max(0.0, min(score, 1.0)), 4)
 
     try:
         validated = RepositoryIntelligenceProfileV3.model_validate(profile)
@@ -49,7 +57,7 @@ def main() -> None:
     ]
     output = Path(args.output)
     output.write_text(json.dumps(entries, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(json.dumps({"generated": len(entries), "output": str(output), "quality": "v2"}))
+    print(json.dumps({"generated": len(entries), "output": str(output), "quality": "evidence-only-v1"}))
 
 
 if __name__ == "__main__":

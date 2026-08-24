@@ -5,7 +5,6 @@ from pathlib import Path
 
 from thingso_worker.ai_models import RepositoryAnalysis
 
-
 ROOT = Path(__file__).resolve().parents[3]
 CANARY = ROOT / "data" / "manual-enrichment" / "canary-10.json"
 

@@ -38,7 +38,8 @@ class ProblemIntelligenceV3(EvidenceAware):
 
 
 class DifferentiationV3(EvidenceAware):
-    differentiators: list[str] = Field(min_length=2, max_length=12)
+    # Sparse is intentional: "no explicit differentiation established" is better than template filler.
+    differentiators: list[str] = Field(default_factory=list, max_length=12)
     design_philosophy: list[str] = Field(default_factory=list, max_length=10)
     unique_capabilities: list[str] = Field(default_factory=list, max_length=12)
     commodity_capabilities: list[str] = Field(default_factory=list, max_length=12)
@@ -46,12 +47,12 @@ class DifferentiationV3(EvidenceAware):
 
 
 class AudienceFitV3(EvidenceAware):
-    target_users: list[str] = Field(min_length=1, max_length=12)
+    target_users: list[str] = Field(default_factory=list, max_length=12)
     team_profiles: list[str] = Field(default_factory=list, max_length=10)
     skill_level: str | None = Field(default=None, max_length=160)
     jobs_to_be_done: list[str] = Field(default_factory=list, max_length=12)
-    best_for: list[str] = Field(min_length=2, max_length=12)
-    poor_fit: list[str] = Field(min_length=1, max_length=12)
+    best_for: list[str] = Field(default_factory=list, max_length=12)
+    poor_fit: list[str] = Field(default_factory=list, max_length=12)
 
 
 class ArchitectureComponent(EvidenceAware):
@@ -61,10 +62,10 @@ class ArchitectureComponent(EvidenceAware):
 
 class ArchitectureV3(EvidenceAware):
     overview: str = Field(min_length=20, max_length=1800)
-    style: IntelligenceClaim
-    execution_model: IntelligenceClaim
-    state_model: IntelligenceClaim
-    components: list[ArchitectureComponent] = Field(min_length=3, max_length=20)
+    style: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
+    execution_model: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
+    state_model: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
+    components: list[ArchitectureComponent] = Field(default_factory=list, max_length=20)
     data_flow: list[str] = Field(default_factory=list, max_length=16)
     control_flow: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
     persistence_model: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
@@ -105,7 +106,7 @@ class DevCommand(EvidenceAware):
 
 
 class DeveloperWorkflowV3(EvidenceAware):
-    local_setup: IntelligenceClaim
+    local_setup: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
     commands: list[DevCommand] = Field(default_factory=list, max_length=24)
     build: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
     tests: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
@@ -119,7 +120,7 @@ class DeveloperWorkflowV3(EvidenceAware):
 
 
 class IntegrationExtensionV3(EvidenceAware):
-    extension_model: IntelligenceClaim
+    extension_model: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
     plugin_system: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
     apis: list[str] = Field(default_factory=list, max_length=16)
     protocols: list[str] = Field(default_factory=list, max_length=16)
@@ -128,7 +129,7 @@ class IntegrationExtensionV3(EvidenceAware):
 
 
 class DeploymentOperationsV3(EvidenceAware):
-    minimum_deployment: IntelligenceClaim
+    minimum_deployment: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
     production_topology: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
     required_services: list[str] = Field(default_factory=list, max_length=16)
     persistence: IntelligenceClaim = Field(default_factory=IntelligenceClaim)
@@ -164,10 +165,10 @@ class ProjectSignalsV3(EvidenceAware):
 
 
 class DecisionGuideV3(EvidenceAware):
-    choose_when: list[str] = Field(min_length=2, max_length=16)
-    avoid_when: list[str] = Field(min_length=1, max_length=16)
-    evaluate_first: list[str] = Field(min_length=2, max_length=16)
-    tradeoffs: list[str] = Field(min_length=1, max_length=16)
+    choose_when: list[str] = Field(default_factory=list, max_length=16)
+    avoid_when: list[str] = Field(default_factory=list, max_length=16)
+    evaluate_first: list[str] = Field(default_factory=list, max_length=16)
+    tradeoffs: list[str] = Field(default_factory=list, max_length=16)
     learning_curve: Complexity = "unknown"
     operational_complexity: Complexity = "unknown"
     migration_cost: Complexity = "unknown"
@@ -188,8 +189,8 @@ class RepositoryIntelligenceProfileV3(BaseModel):
     problem: ProblemIntelligenceV3
     differentiation: DifferentiationV3
     audience: AudienceFitV3
-    capabilities: list[str] = Field(min_length=3, max_length=24)
-    limitations: list[str] = Field(min_length=2, max_length=20)
+    capabilities: list[str] = Field(default_factory=list, max_length=24)
+    limitations: list[str] = Field(default_factory=list, max_length=20)
     architecture: ArchitectureV3
     technology: TechnologyProfileV3
     codebase: CodebaseIntelligenceV3

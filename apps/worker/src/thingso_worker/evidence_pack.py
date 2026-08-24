@@ -7,7 +7,7 @@ from .models import SourceDocument
 from .normalization import make_source_document
 
 MAX_TREE_LINES = 700
-MAX_SELECTED_FILES = 10
+MAX_SELECTED_FILES = 5
 
 _MANIFESTS = {
     "package.json",
@@ -102,6 +102,19 @@ def _priority(path: str) -> tuple[int, int, str] | None:
     return None
 
 
+def _selection_group(path: str) -> str:
+    document_type = _document_type(path)
+    if document_type == "manifest":
+        return "manifest"
+    if document_type in {"container", "configuration"}:
+        return "runtime"
+    if document_type in {"contributing", "security"}:
+        return "project-process"
+    if document_type == "ci":
+        return "ci"
+    return "docs"
+
+
 def select_evidence_paths(tree: list[dict[str, object]]) -> list[str]:
     candidates: list[tuple[tuple[int, int, str], str]] = []
     seen: set[str] = set()
@@ -117,7 +130,25 @@ def select_evidence_paths(tree: list[dict[str, object]]) -> list[str]:
         seen.add(path)
         candidates.append((score, path))
     candidates.sort(key=lambda item: item[0])
-    return [path for _, path in candidates[:MAX_SELECTED_FILES]]
+
+    selected: list[str] = []
+    used_groups: set[str] = set()
+    for _, path in candidates:
+        group = _selection_group(path)
+        if group in used_groups:
+            continue
+        selected.append(path)
+        used_groups.add(group)
+        if len(selected) >= MAX_SELECTED_FILES:
+            return selected
+
+    for _, path in candidates:
+        if path in selected:
+            continue
+        selected.append(path)
+        if len(selected) >= MAX_SELECTED_FILES:
+            break
+    return selected
 
 
 def _tree_text(tree: list[dict[str, object]]) -> str:

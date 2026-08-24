@@ -4,18 +4,26 @@ import type {
   RepositoryIntelligenceV3,
 } from "@/lib/intelligence";
 
+const NOT_ESTABLISHED = "Not established from available evidence.";
+
+function EmptyState() {
+  return <p className="muted">{NOT_ESTABLISHED}</p>;
+}
+
 function List({ items }: { items: string[] }) {
-  if (!items.length) return <p className="muted">Not established from available evidence.</p>;
+  if (!items.length) return <EmptyState />;
   return <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>;
 }
 
 function Claim({ label, claim }: { label: string; claim: IntelligenceClaim }) {
+  const established = Boolean(claim.value);
   return (
     <div className="idea-card">
       <h3>{label}</h3>
-      <p>{claim.value ?? "Not established from available evidence."}</p>
+      <p className={established ? undefined : "muted"}>{claim.value ?? NOT_ESTABLISHED}</p>
       <small className="muted">
-        {claim.state}{claim.confidence !== null ? ` · ${Math.round(claim.confidence * 100)}% confidence` : ""}
+        <span className="tag">{claim.state}</span>
+        {claim.confidence !== null ? ` · ${Math.round(claim.confidence * 100)}% confidence` : ""}
       </small>
     </div>
   );
@@ -29,7 +37,9 @@ function SectionConfidence({
   section: string;
 }) {
   const confidence = intelligence.sectionConfidence[section];
-  if (confidence === null || confidence === undefined) return null;
+  if (confidence === null || confidence === undefined) {
+    return <span className="tag">evidence incomplete</span>;
+  }
   return <span className="tag">{Math.round(confidence * 100)}% confidence</span>;
 }
 
@@ -51,7 +61,7 @@ export function RepositoryIntelligenceV3View({
           <div className="metric-card"><span>Product type</span><strong>{intelligence.identity.productType}</strong></div>
           <div className="metric-card"><span>Primary role</span><strong>{intelligence.identity.primaryRole}</strong></div>
           <div className="metric-card"><span>Category</span><strong>{intelligence.identity.primaryCategory}</strong></div>
-          <div className="metric-card"><span>Interaction</span><strong>{intelligence.identity.interactionModel ?? "—"}</strong></div>
+          <div className="metric-card"><span>Interaction</span><strong>{intelligence.identity.interactionModel ?? "Not established"}</strong></div>
         </div>
       </section>
 
@@ -71,13 +81,18 @@ export function RepositoryIntelligenceV3View({
           <div>
             <h3>Solution approach</h3>
             <p>{intelligence.problem.solutionApproach}</p>
-            {intelligence.problem.whyItMatters ? <><h3>Why it matters</h3><p>{intelligence.problem.whyItMatters}</p></> : null}
+            <h3>Why it matters</h3>
+            {intelligence.problem.whyItMatters ? <p>{intelligence.problem.whyItMatters}</p> : <EmptyState />}
           </div>
         </div>
       </section>
 
       <section className="detail-section">
-        <div className="section-heading"><ProvenanceBadge kind="editorial" /><h2>Why it is different</h2></div>
+        <div className="section-heading">
+          <ProvenanceBadge kind="editorial" />
+          <h2>Why it is different</h2>
+          <SectionConfidence intelligence={intelligence} section="differentiation" />
+        </div>
         <div className="detail-columns">
           <div><h3>Differentiators</h3><List items={intelligence.differentiation.differentiators} /></div>
           <div><h3>Design philosophy</h3><List items={intelligence.differentiation.designPhilosophy} /></div>
@@ -90,7 +105,7 @@ export function RepositoryIntelligenceV3View({
         <div className="section-heading">
           <ProvenanceBadge kind="editorial" />
           <h2>Who should use it</h2>
-          <SectionConfidence intelligence={intelligence} section="decision" />
+          <SectionConfidence intelligence={intelligence} section="audience" />
         </div>
         <div className="detail-columns">
           <div><h3>Target users</h3><List items={intelligence.audience.targetUsers} /></div>
@@ -116,16 +131,20 @@ export function RepositoryIntelligenceV3View({
           <Claim label="Scaling" claim={intelligence.architecture.scalingModel} />
         </div>
         <h3>Core components</h3>
-        <div className="idea-grid">
-          {intelligence.architecture.components.map((component) => (
-            <article className="idea-card" key={component.name}>
-              <h3>{component.name}</h3>
-              <p>{component.responsibility}</p>
-            </article>
-          ))}
-        </div>
+        {intelligence.architecture.components.length ? (
+          <div className="idea-grid">
+            {intelligence.architecture.components.map((component) => (
+              <article className="idea-card" key={component.name}>
+                <h3>{component.name}</h3>
+                <p>{component.responsibility}</p>
+              </article>
+            ))}
+          </div>
+        ) : <EmptyState />}
         <h3>Data / control flow</h3>
-        <ol>{intelligence.architecture.dataFlow.map((step) => <li key={step}>{step}</li>)}</ol>
+        {intelligence.architecture.dataFlow.length ? (
+          <ol>{intelligence.architecture.dataFlow.map((step) => <li key={step}>{step}</li>)}</ol>
+        ) : <EmptyState />}
       </section>
 
       <section className="detail-section">
@@ -134,16 +153,18 @@ export function RepositoryIntelligenceV3View({
           <h2>Technology</h2>
           <SectionConfidence intelligence={intelligence} section="technology" />
         </div>
-        <div className="idea-grid">
-          {intelligence.technology.items.map((item) => (
-            <article className="idea-card" key={`${item.category}-${item.name}`}>
-              <span className="tag">{item.category}</span>
-              <h3>{item.name}</h3>
-              <p>{item.role}</p>
-              <small className="muted">{item.state}</small>
-            </article>
-          ))}
-        </div>
+        {intelligence.technology.items.length ? (
+          <div className="idea-grid">
+            {intelligence.technology.items.map((item) => (
+              <article className="idea-card" key={`${item.category}-${item.name}`}>
+                <span className="tag">{item.category}</span>
+                <h3>{item.name}</h3>
+                <p>{item.role}</p>
+                <small className="muted">{item.state}</small>
+              </article>
+            ))}
+          </div>
+        ) : <EmptyState />}
       </section>
 
       <section className="detail-section">
@@ -153,14 +174,16 @@ export function RepositoryIntelligenceV3View({
           <SectionConfidence intelligence={intelligence} section="codebase" />
         </div>
         <p>{intelligence.codebase.structureSummary}</p>
-        <div className="idea-grid">
-          {intelligence.codebase.importantPaths.map((item) => (
-            <article className="idea-card" key={item.path}>
-              <code>{item.path}</code>
-              <p>{item.purpose}</p>
-            </article>
-          ))}
-        </div>
+        {intelligence.codebase.importantPaths.length ? (
+          <div className="idea-grid">
+            {intelligence.codebase.importantPaths.map((item) => (
+              <article className="idea-card" key={item.path}>
+                <code>{item.path}</code>
+                <p>{item.purpose}</p>
+              </article>
+            ))}
+          </div>
+        ) : <EmptyState />}
         <div className="detail-columns">
           <div><h3>Start reading</h3><List items={intelligence.codebase.startReading} /></div>
           <div><h3>Entry points</h3><List items={intelligence.codebase.entryPoints} /></div>
@@ -183,7 +206,7 @@ export function RepositoryIntelligenceV3View({
               </div>
             ))}
           </div>
-        ) : null}
+        ) : <EmptyState />}
         <div className="idea-grid">
           <Claim label="Build" claim={intelligence.developerWorkflow.build} />
           <Claim label="Tests" claim={intelligence.developerWorkflow.tests} />
@@ -196,7 +219,11 @@ export function RepositoryIntelligenceV3View({
       </section>
 
       <section className="detail-section">
-        <div className="section-heading"><ProvenanceBadge kind="editorial" /><h2>Integration & extension</h2></div>
+        <div className="section-heading">
+          <ProvenanceBadge kind="editorial" />
+          <h2>Integration & extension</h2>
+          <SectionConfidence intelligence={intelligence} section="integration" />
+        </div>
         <div className="idea-grid">
           <Claim label="Extension model" claim={intelligence.integration.extensionModel} />
           <Claim label="Plugin system" claim={intelligence.integration.pluginSystem} />
@@ -231,7 +258,11 @@ export function RepositoryIntelligenceV3View({
       </section>
 
       <section className="detail-section">
-        <div className="section-heading"><ProvenanceBadge kind="editorial" /><h2>Security & privacy</h2></div>
+        <div className="section-heading">
+          <ProvenanceBadge kind="editorial" />
+          <h2>Security & privacy</h2>
+          <SectionConfidence intelligence={intelligence} section="security_privacy" />
+        </div>
         <div className="idea-grid">
           <Claim label="Authentication" claim={intelligence.securityPrivacy.authentication} />
           <Claim label="Authorization" claim={intelligence.securityPrivacy.authorization} />
@@ -247,7 +278,11 @@ export function RepositoryIntelligenceV3View({
       </section>
 
       <section className="detail-section">
-        <div className="section-heading"><ProvenanceBadge kind="editorial" /><h2>Decision guide</h2></div>
+        <div className="section-heading">
+          <ProvenanceBadge kind="editorial" />
+          <h2>Decision guide</h2>
+          <SectionConfidence intelligence={intelligence} section="decision" />
+        </div>
         <div className="detail-columns">
           <div><h3>Choose when</h3><List items={intelligence.decision.chooseWhen} /></div>
           <div><h3>Avoid when</h3><List items={intelligence.decision.avoidWhen} /></div>
@@ -263,7 +298,11 @@ export function RepositoryIntelligenceV3View({
       </section>
 
       <section className="detail-section">
-        <div className="section-heading"><ProvenanceBadge kind="editorial" /><h2>Project signals & learning</h2></div>
+        <div className="section-heading">
+          <ProvenanceBadge kind="editorial" />
+          <h2>Project signals & learning</h2>
+          <SectionConfidence intelligence={intelligence} section="project_signals" />
+        </div>
         <div className="idea-grid">
           <Claim label="Maturity" claim={intelligence.projectSignals.maturity} />
           <Claim label="Governance" claim={intelligence.projectSignals.governance} />

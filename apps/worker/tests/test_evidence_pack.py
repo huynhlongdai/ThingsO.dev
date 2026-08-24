@@ -13,6 +13,9 @@ def test_evidence_selection_is_diverse_and_bounded() -> None:
         {"type": "blob", "path": "SECURITY.md"},
         {"type": "blob", "path": ".github/workflows/ci.yml"},
         {"type": "blob", "path": "docs/architecture.md"},
+        {"type": "blob", "path": "main.py"},
+        {"type": "blob", "path": "src/core/engine.py"},
+        {"type": "blob", "path": "CHANGELOG.md"},
         {"type": "blob", "path": "README.md"},
     ]
 
@@ -24,4 +27,6 @@ def test_evidence_selection_is_diverse_and_bounded() -> None:
     assert any(path in selected for path in {"CONTRIBUTING.md", "SECURITY.md"})
     assert ".github/workflows/ci.yml" in selected
     assert "docs/architecture.md" in selected
+    assert "main.py" in selected
+    assert "CHANGELOG.md" in selected
     assert "README.md" not in selected

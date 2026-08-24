@@ -12,6 +12,10 @@ MAX_SELECTED_FILES = 5
 _MANIFESTS = {
     "package.json",
     "pyproject.toml",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "setup.py",
+    "setup.cfg",
     "cargo.toml",
     "go.mod",
     "pom.xml",
@@ -37,6 +41,12 @@ _CONFIG_FILES = {
     "makefile",
     "taskfile.yml",
     "taskfile.yaml",
+    "tox.ini",
+}
+_CI_FILES = {
+    ".travis.yml",
+    "appveyor.yml",
+    "azure-pipelines.yml",
 }
 _PROJECT_DOCS = {
     "contributing.md",
@@ -63,7 +73,7 @@ def _document_type(path: str) -> str:
         return "security"
     if "architecture" in name:
         return "architecture"
-    if lower.startswith(".github/workflows/"):
+    if lower.startswith(".github/workflows/") or name in _CI_FILES:
         return "ci"
     if name in _CONFIG_FILES:
         return "configuration"
@@ -84,6 +94,8 @@ def _priority(path: str) -> tuple[int, int, str] | None:
         return (22, depth, lower)
     if name in _PROJECT_DOCS:
         return (24 if depth <= 2 else 30, depth, lower)
+    if name in _CI_FILES:
+        return (27, depth, lower)
     if lower.startswith(".github/workflows/") and lower.endswith((".yml", ".yaml")):
         return (28, depth, lower)
     if lower.startswith("docs/") and any(

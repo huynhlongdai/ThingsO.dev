@@ -4,6 +4,7 @@ import base64
 import time
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -112,3 +113,51 @@ class GitHubClient:
             return None
         text = base64.b64decode(encoded).decode("utf-8", errors="replace")
         return text, str(payload.get("html_url") or payload.get("download_url") or ""), payload.get("sha")
+
+    def get_tree(self, full_name: str, ref: str) -> list[dict[str, Any]]:
+        safe_ref = quote(ref, safe="")
+        payload = self._request(
+            "GET",
+            f"/repos/{full_name}/git/trees/{safe_ref}",
+            params={"recursive": "1"},
+        ).json()
+        tree = payload.get("tree") or []
+        return [item for item in tree if isinstance(item, dict)]
+
+    def get_text_file(
+        self,
+        full_name: str,
+        path: str,
+        *,
+        ref: str,
+        max_bytes: int = 160_000,
+    ) -> tuple[str, str, str | None] | None:
+        safe_path = quote(path, safe="/")
+        response = self._client.request(
+            "GET",
+            f"/repos/{full_name}/contents/{safe_path}",
+            params={"ref": ref},
+        )
+        if response.status_code == 404:
+            return None
+        if response.is_error:
+            response = self._request(
+                "GET",
+                f"/repos/{full_name}/contents/{safe_path}",
+                params={"ref": ref},
+            )
+        payload = response.json()
+        if not isinstance(payload, dict) or payload.get("type") != "file":
+            return None
+        size = int(payload.get("size") or 0)
+        if size > max_bytes:
+            return None
+        encoded = payload.get("content") or ""
+        if payload.get("encoding") != "base64" or not encoded:
+            return None
+        raw = base64.b64decode(encoded)
+        if len(raw) > max_bytes:
+            return None
+        text = raw.decode("utf-8", errors="replace")
+        source_url = str(payload.get("html_url") or payload.get("download_url") or "")
+        return text, source_url, payload.get("sha")

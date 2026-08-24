@@ -5,7 +5,6 @@ from pathlib import Path
 
 from thingso_worker.ai_models import UseCaseInference
 
-
 # Versioned, intentionally small editorial mapping from the already-reviewed curated category
 # to jobs-to-be-done. These are decision/discovery labels, not claims that every repository
 # implements every possible workflow in the use case.

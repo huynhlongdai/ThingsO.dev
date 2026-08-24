@@ -16,16 +16,22 @@ export async function getRepositoryIntelligence(
     model_provider: string;
     model_name: string;
     created_at: string;
+    is_current_snapshot: boolean;
   }>(
-    `SELECT a.output_json, a.confidence, a.model_provider, a.model_name, a.created_at
+    `SELECT
+       a.output_json,
+       a.confidence,
+       a.model_provider,
+       a.model_name,
+       a.created_at,
+       (a.source_snapshot_id = r.current_snapshot_id) AS is_current_snapshot
      FROM ai_analyses a
      JOIN repositories r ON r.id = a.repository_id
      WHERE lower(r.full_name) = lower($1)
        AND a.analysis_type = 'repository_intelligence'
        AND a.schema_version = 'repo-intelligence-v3'
        AND a.review_status = 'approved'
-       AND a.source_snapshot_id = r.current_snapshot_id
-     ORDER BY a.created_at DESC
+     ORDER BY (a.source_snapshot_id = r.current_snapshot_id) DESC, a.created_at DESC
      LIMIT 1`,
     [fullName],
   );
@@ -38,5 +44,6 @@ export async function getRepositoryIntelligence(
     model: row.model_name,
     createdAt: row.created_at,
     confidence: Number.isFinite(parsed) ? parsed : null,
+    isCurrentSnapshot: row.is_current_snapshot,
   });
 }

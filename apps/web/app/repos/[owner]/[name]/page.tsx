@@ -77,6 +77,18 @@ export default async function RepositoryPage({
             <HealthScore score={repo.healthScore} />
           </div>
 
+          {intelligence && !intelligence.isCurrentSnapshot ? (
+            <section className="detail-section">
+              <div className="section-heading">
+                <span className="tag">Evidence refresh pending</span>
+                <h2>Last approved intelligence</h2>
+              </div>
+              <p className="muted">
+                A newer repository snapshot is being reconciled. This page temporarily keeps the last approved intelligence profile rather than presenting unreviewed or missing analysis.
+              </p>
+            </section>
+          ) : null}
+
           {intelligence ? (
             <RepositoryIntelligenceV3View intelligence={intelligence} />
           ) : repo.analysis ? (

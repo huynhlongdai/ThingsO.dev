@@ -24,6 +24,7 @@ export async function getRepositoryIntelligence(
        AND a.analysis_type = 'repository_intelligence'
        AND a.schema_version = 'repo-intelligence-v3'
        AND a.review_status = 'approved'
+       AND a.source_snapshot_id = r.current_snapshot_id
      ORDER BY a.created_at DESC
      LIMIT 1`,
     [fullName],

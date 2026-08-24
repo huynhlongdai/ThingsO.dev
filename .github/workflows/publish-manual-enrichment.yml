@@ -1,13 +1,10 @@
-name: Publish manual enrichment
+name: Publish manual enrichment (legacy v1)
 
 on:
-  workflow_run:
-    workflows: ["Deploy production"]
-    types: [completed]
   workflow_dispatch:
 
 concurrency:
-  group: thingso-manual-enrichment
+  group: thingso-manual-enrichment-v1
   cancel-in-progress: false
 
 permissions:
@@ -15,11 +12,6 @@ permissions:
 
 jobs:
   publish:
-    if: >-
-      ${{
-        github.event_name == 'workflow_dispatch' ||
-        github.event.workflow_run.conclusion == 'success'
-      }}
     runs-on: self-hosted
     timeout-minutes: 15
     environment: production
@@ -38,7 +30,7 @@ jobs:
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 
-      - name: Publish editorial canary
+      - name: Publish legacy editorial canary
         shell: bash
         run: |
           set -euo pipefail
@@ -49,9 +41,9 @@ jobs:
             run --rm worker \
             uv run --project apps/worker python \
             apps/worker/scripts/import_manual_enrichment.py \
-            data/manual-enrichment/canary-10.json | tee /tmp/manual-enrichment.json
+            data/manual-enrichment/canary-10.json | tee /tmp/manual-enrichment-v1.json
 
-      - name: Verify approved editorial analyses
+      - name: Verify legacy analyses
         shell: bash
         run: |
           set -euo pipefail
@@ -62,21 +54,11 @@ jobs:
             exec -T postgres psql \
             -U thingso -d thingso -Atc \
             "SELECT count(*) FROM ai_analyses WHERE analysis_type='repository_enrichment' AND model_provider='editorial' AND review_status='approved';")"
-          echo "Approved editorial analyses: $APPROVED"
+          echo "Approved legacy editorial analyses: $APPROVED"
           test "$APPROVED" -ge 10
-
-          {
-            echo "## ThingsO manual editorial enrichment"
-            echo
-            echo "- Approved editorial analyses: $APPROVED"
-            echo "- Provider provenance: editorial"
-            echo "- Model provenance: chatgpt-gpt-5.6-sol-manual"
-            echo "- Publication gate: deterministic-evidence-review-v1"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Production health check
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --show-error --silent --max-time 20 \
-            https://thingso.dev/api/health
+          curl --fail --show-error --silent --max-time 20 https://thingso.dev/api/health

@@ -33,6 +33,25 @@ test("repository detail route is intelligence-first and preserves provenance", a
   assert.match(intelligence, /ProvenanceBadge kind="editorial"/);
 });
 
+test("comparison is current-v3 and decision-first", async () => {
+  const page = await source("../app/compare/page.tsx");
+  const picker = await source("../components/compare-picker.tsx");
+  const intelligenceData = await source("../lib/intelligence-data.ts");
+
+  assert.match(page, /ComparePicker/);
+  assert.match(page, /getRepositoryIntelligence/);
+  assert.match(page, /Choose when/);
+  assert.match(page, /Avoid when/);
+  assert.match(page, /Evaluate first/);
+  assert.match(page, /Minimum deployment/);
+  assert.match(page, /Operational complexity/);
+  assert.doesNotMatch(page, /Reviewed AI summary/);
+
+  assert.match(picker, /Compare selected/);
+  assert.match(picker, /Select repository/);
+  assert.match(intelligenceData, /a\.source_snapshot_id = r\.current_snapshot_id/);
+});
+
 test("public API and SEO routes exist", async () => {
   const searchApi = await source("../app/api/search/route.ts");
   const healthApi = await source("../app/api/health/route.ts");

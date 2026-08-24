@@ -6,7 +6,7 @@ on:
       - Deploy production
       - Refresh intelligence evidence
       - Publish repository intelligence v3
-      - Publish intelligence evidence-only v1
+      - Publish intelligence evidence-depth v1
       - Verify production intelligence
     types: [completed]
 

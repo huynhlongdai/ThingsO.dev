@@ -71,6 +71,7 @@ export default async function RepositoryPage({
                 <a href={repo.githubUrl} rel="noreferrer">GitHub ↗</a>
                 {repo.homepageUrl ? <a href={repo.homepageUrl} rel="noreferrer">Homepage ↗</a> : null}
                 <Link href={`/compare?repos=${encodeURIComponent(repo.fullName)}`}>Compare</Link>
+                {intelligence ? <Link href={`/repos/${repo.owner}/${repo.name}/blueprint`}>Build Blueprint →</Link> : null}
               </div>
             </div>
             <HealthScore score={repo.healthScore} />

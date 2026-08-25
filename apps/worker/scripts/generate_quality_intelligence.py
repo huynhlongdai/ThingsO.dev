@@ -7,7 +7,12 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from thingso_worker.intelligence_models import RepositoryIntelligenceProfileV3
-from thingso_worker.quality_editorial import generate_quality_entries
+from thingso_worker.quality_editorial import (
+    generate_quality_entries,
+    generate_quality_entry,
+    quality_issues,
+)
+from thingso_worker.semantic_depth import enhance_quality_entry
 from thingso_worker.settings import Settings
 
 
@@ -41,23 +46,43 @@ def validate_entry(entry: dict[str, object]) -> dict[str, object]:
     except ValidationError as exc:
         raise ValueError(f"{full_name}: generated quality profile failed schema validation: {exc}") from exc
 
+    issues = quality_issues(validated)
+    if issues:
+        raise ValueError(f"{full_name}: post-depth semantic gate failed: {'; '.join(issues)}")
+
     return {"full_name": full_name, "profile": validated.model_dump(mode="json")}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default="data/seeds/repositories.csv")
+    parser.add_argument("--repository")
+    parser.add_argument("--category")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
+    if bool(args.repository) != bool(args.category):
+        parser.error("--repository and --category must be supplied together")
+
     settings = Settings()
+    if args.repository:
+        base_entries = [
+            generate_quality_entry(
+                settings.database_url,
+                args.repository,
+                args.category,
+            )
+        ]
+    else:
+        base_entries = generate_quality_entries(settings.database_url, args.seed)
+
     entries = [
-        validate_entry(entry)
-        for entry in generate_quality_entries(settings.database_url, args.seed)
+        validate_entry(enhance_quality_entry(settings.database_url, entry))
+        for entry in base_entries
     ]
     output = Path(args.output)
     output.write_text(json.dumps(entries, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(json.dumps({"generated": len(entries), "output": str(output), "quality": "evidence-only-v1"}))
+    print(json.dumps({"generated": len(entries), "output": str(output), "quality": "evidence-depth-v1"}))
 
 
 if __name__ == "__main__":

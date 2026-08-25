@@ -128,7 +128,7 @@ test("use-case pages rank the selected reviewed fit rather than an unrelated top
   const card = await source("../components/repository-card.tsx");
 
   assert.match(index, /listReviewedUseCases/);
-  assert.match(index, /reviewed matches/);
+  assert.match(index, /reviewed matches/i);
   assert.match(page, /getReviewedUseCase/);
   assert.match(page, /fitScore: repo\.fitScore/);
   assert.match(page, /fitSource: repo\.fitSource/);

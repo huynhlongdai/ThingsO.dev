@@ -7,7 +7,9 @@ from .models import SourceDocument
 from .normalization import make_source_document
 
 MAX_TREE_LINES = 700
-MAX_SELECTED_FILES = 8
+# Five selected files keeps the curated-100 refresh near the proven API-call budget while
+# V3 improves evidence diversity by adding source-entrypoint and evolution classes.
+MAX_SELECTED_FILES = 5
 
 _MANIFESTS = {
     "package.json",
@@ -112,7 +114,9 @@ def _is_source_entrypoint(path: str) -> bool:
         return depth == 1 or pure.parts[0] in _RUNTIME_ROOTS
     if name not in _CORE_SOURCE_NAMES or depth > 5:
         return False
-    return any(
+    if depth > 1 and pure.parts[0] not in _RUNTIME_ROOTS:
+        return False
+    return depth == 1 or any(
         part in {"src", "lib", "core", "graph", "graphs", "agent", "agents", "runtime"}
         for part in pure.parts[:-1]
     )

@@ -148,6 +148,18 @@ export default async function RepositoryPage({
                     })}
                   </div>
                 ) : null}
+                {repo.buildIdeas.length ? (
+                  <div className="use-case-strip build-path-strip">
+                    {repo.buildIdeas.map((idea) => (
+                      <article className="use-case-card" key={idea.id}>
+                        <span>Build idea</span>
+                        <h3><Link href={`/ideas/${idea.slug}`}>{idea.title}</Link></h3>
+                        <p>{idea.problem}</p>
+                        <ProvenanceBadge kind={intelligence ? "editorial" : "ai_inference"} />
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
               </section>
             ) : null}
 

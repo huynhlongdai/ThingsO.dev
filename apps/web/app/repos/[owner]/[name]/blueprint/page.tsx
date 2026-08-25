@@ -104,6 +104,16 @@ export default async function RepositoryBlueprintPage({
   ];
   const establishedClaims = evidenceClaims.filter((claim) => claim.value && claim.state !== "unknown").length;
   const unknownClaims = evidenceClaims.length - establishedClaims;
+  const profileEvidenceSelectors = new Set([
+    ...intelligence.decision.evidence,
+    ...intelligence.developerWorkflow.evidence,
+    ...intelligence.codebase.evidence,
+    ...intelligence.architecture.evidence,
+    ...intelligence.technology.evidence,
+    ...intelligence.integration.evidence,
+    ...intelligence.deploymentOperations.evidence,
+    ...intelligence.securityPrivacy.evidence,
+  ]).size;
 
   return (
     <main>
@@ -135,7 +145,7 @@ export default async function RepositoryBlueprintPage({
           <section className="blueprint-evidence-summary" aria-label="Blueprint evidence summary">
             <div><span>Established evidence fields</span><strong>{establishedClaims}/{evidenceClaims.length}</strong><small>Known or inferred with an explicit value</small></div>
             <div><span>Unresolved fields</span><strong>{unknownClaims}</strong><small>Must be verified before relying on them</small></div>
-            <div><span>Source documents</span><strong>{intelligence.evidence.length}</strong><small>Profile evidence selectors</small></div>
+            <div><span>Evidence selectors</span><strong>{profileEvidenceSelectors}</strong><small>Unique selectors across blueprint sections</small></div>
             <div><span>Execution rule</span><strong>No guessing</strong><small>Unknown stays visible throughout the blueprint</small></div>
           </section>
 

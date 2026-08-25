@@ -2,7 +2,7 @@ name: Publish intelligence evidence-only v1
 
 on:
   workflow_run:
-    workflows: ["Deploy production"]
+    workflows: ["Deploy production", "Refresh intelligence evidence"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -38,6 +38,16 @@ jobs:
               core.setOutput('needed', 'false');
               return;
             }
+            // A successful evidence refresh can advance current_snapshot_id even when
+            // application code has not changed. Always reconcile editorial intelligence
+            // after refresh so public current-snapshot coverage cannot drift silently.
+            if (run.name === 'Refresh intelligence evidence') {
+              core.setOutput('needed', 'true');
+              return;
+            }
+            // Deploy-triggered publication remains version/change gated. This prevents
+            // ordinary UI-only deploys from reprocessing all 100 repositories when
+            // current-snapshot intelligence is already reconciled.
             const response = await github.rest.repos.getCommit({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -142,6 +152,7 @@ jobs:
             echo "- Current repositories: $TOTAL"
             echo "- Approved evidence-only profiles: $APPROVED"
             echo "- Non-approved current evidence-only profiles: $REVIEW"
+            echo "- Refresh-triggered current-snapshot reconciliation: enabled"
             echo "- Category-template semantic leakage gate: passed during generation"
             echo "- Semantic duplicate gate: passed during generation"
             echo "- Unknown/sparse sections: explicitly allowed"

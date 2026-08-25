@@ -78,9 +78,9 @@ export default async function RepositoryBlueprintPage({
 
   return (
     <main>
-      <div className="page-shell">
+      <div className="page-shell page-shell--wide">
         <SiteHeader />
-        <section className="content-page repo-detail blueprint-page">
+        <section className="content-page repo-detail blueprint-page blueprint-page--v4">
           <div className="blueprint-hero">
             <div>
               <p className="eyebrow">Build · evidence-backed blueprint</p>

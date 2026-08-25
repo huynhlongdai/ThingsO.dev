@@ -38,18 +38,33 @@ export default async function SearchPage({
 
   return (
     <main>
-      <div className="page-shell">
+      <div className="page-shell page-shell--marketing">
         <SiteHeader />
-        <section className="search-page">
-          <p className="eyebrow">Intent search · Repository Intelligence v3</p>
-          <h1 className="search-page__title">
-            {query ? `Results for “${query}”` : "What do you want to build?"}
-          </h1>
-          <IntentSearch compact defaultValue={query} />
-          <div className="search-layout">
-            <aside className="filter-panel" aria-label="Search filters and guidance">
-              <strong>Decision filters</strong>
-              <form className="search-filters" action="/search" method="get">
+
+        <section className="surface-hero surface-hero--search">
+          <div className="search-command">
+            <p className="eyebrow">Intent search · Repository Intelligence v3</p>
+            <h1 className="search-page__title">
+              {query ? `Find the best fit for “${query}”.` : "What do you want to build?"}
+            </h1>
+            <p className="lede">Search across repository scope, problems, capabilities, limitations, reviewed use cases and decision criteria.</p>
+            <IntentSearch compact defaultValue={query} />
+          </div>
+          <div className="search-command__status" aria-label="Search result status">
+            <article><span>Results</span><strong>{repositories.length}</strong><small>evidence-backed matches</small></article>
+            <article><span>Filters</span><strong>{hasFilters ? "Active" : "Open"}</strong><small>{hasFilters ? "decision constraints applied" : "all eligible repositories"}</small></article>
+            <article><span>Ranking</span><strong>Fit first</strong><small>health remains a separate signal</small></article>
+          </div>
+        </section>
+
+        <section className="search-layout search-layout--v3">
+          <aside className="search-sidebar" aria-label="Search filters and ranking guidance">
+            <details className="search-filter-drawer" open>
+              <summary>
+                <span>Decision filters</span>
+                <small>{hasFilters ? "Filters active" : "Refine results"}</small>
+              </summary>
+              <form className="search-filters search-filters--v3" action="/search" method="get">
                 <input type="hidden" name="q" value={query} />
                 <label>
                   <span>Capability</span>
@@ -73,36 +88,45 @@ export default async function SearchPage({
                 <button type="submit">Apply filters</button>
                 {hasFilters ? <Link href={`/search?q=${encodeURIComponent(query)}`}>Clear filters</Link> : null}
               </form>
-              <strong>Search understands</strong>
-              <span>Problems & solution approach</span>
-              <span>Capabilities & limitations</span>
-              <span>Best-fit audiences</span>
-              <span>Choose / evaluate criteria</span>
-              <p>Ranking combines current approved V3 intelligence, taxonomy, use cases, source descriptions, full-text relevance and typo-tolerant matching.</p>
-            </aside>
-            <section className="search-results" aria-label="Search results">
-              <div className="result-count">
-                {repositories.length} evidence-backed result{repositories.length === 1 ? "" : "s"}
-                {hasFilters ? " after filters" : ""}
+            </details>
+
+            <div className="search-ranking-card">
+              <span>What ranking reads</span>
+              <ul>
+                <li>Problem & solution approach</li>
+                <li>Capabilities & limitations</li>
+                <li>Best-fit audiences</li>
+                <li>Choose / evaluate criteria</li>
+              </ul>
+              <p>Current approved V3 intelligence is combined with taxonomy, use cases, source descriptions, full-text relevance and typo-tolerant matching.</p>
+            </div>
+          </aside>
+
+          <section className="search-results search-results--v3" aria-label="Search results">
+            <div className="search-results__heading">
+              <div>
+                <span>{repositories.length} result{repositories.length === 1 ? "" : "s"}</span>
+                <strong>{query ? `Matching “${query}”` : "Curated repository matches"}</strong>
               </div>
-              {repositories.length ? (
-                repositories.map((repo) => (
-                  <RepositoryCard
-                    key={repo.id}
-                    repo={{
-                      ...repo,
-                      stars: formatCompactNumber(repo.stars),
-                    }}
-                  />
-                ))
-              ) : (
-                <div className="empty-state">
-                  <strong>No matching repositories yet.</strong>
-                  <p>Try a broader intent, remove a filter, or search a capability such as “browser automation”, “RAG”, or “self hosting”.</p>
-                </div>
-              )}
-            </section>
-          </div>
+              <p>Open a result to inspect its Decision Snapshot, evidence gaps and implementation detail.</p>
+            </div>
+            {repositories.length ? (
+              repositories.map((repo) => (
+                <RepositoryCard
+                  key={repo.id}
+                  repo={{
+                    ...repo,
+                    stars: formatCompactNumber(repo.stars),
+                  }}
+                />
+              ))
+            ) : (
+              <div className="empty-state empty-state--search">
+                <strong>No matching repositories yet.</strong>
+                <p>Try a broader intent, remove a filter, or search a capability such as “browser automation”, “RAG”, or “self hosting”.</p>
+              </div>
+            )}
+          </section>
         </section>
       </div>
     </main>

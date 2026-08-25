@@ -1,6 +1,7 @@
 const sections = [
   ["overview", "Overview"],
   ["problem-solution", "Problem & solution"],
+  ["differentiation", "Differentiation"],
   ["capabilities-limitations", "Capabilities & limitations"],
   ["decision-guide", "Decision guide"],
   ["architecture", "Architecture"],

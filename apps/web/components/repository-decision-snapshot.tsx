@@ -1,5 +1,6 @@
 import { ProvenanceBadge } from "@/components/provenance-badge";
 import type { RepositoryIntelligenceV3 } from "@/lib/intelligence";
+import { getRepositoryReadiness } from "@/lib/repository-readiness";
 
 const UNKNOWN = "Not established";
 
@@ -25,6 +26,7 @@ export function RepositoryDecisionSnapshot({
     ?? intelligence.differentiation.tradeoffsCreatedByDesign[0]
     ?? null;
   const minimumDeployment = intelligence.deploymentOperations.minimumDeployment.value;
+  const readiness = getRepositoryReadiness(intelligence);
 
   return (
     <section className="decision-snapshot" id="decision-snapshot" aria-labelledby="decision-snapshot-title">
@@ -35,8 +37,36 @@ export function RepositoryDecisionSnapshot({
         </div>
         <div className="decision-snapshot__meta">
           <ProvenanceBadge kind="editorial" />
-          <span>{Math.round(intelligence.confidence * 100)}% profile confidence</span>
+          <span>{Math.round(intelligence.confidence * 100)}% claim confidence</span>
         </div>
+      </div>
+
+      <div className={`readiness-banner readiness-banner--${readiness.stage}`}>
+        <div className="readiness-banner__status">
+          <span>Profile readiness</span>
+          <strong>{readiness.label}</strong>
+          <small>Approved means evidence-safe; readiness measures completeness for analysis, decision and implementation.</small>
+        </div>
+        <div className="readiness-banner__coverage">
+          <span>{Math.round(readiness.coverage * 100)}%</span>
+          <small>{readiness.completedChecks}/{readiness.totalChecks} readiness checks established</small>
+        </div>
+        <div className="readiness-banner__stages" aria-label="Readiness stages">
+          {[
+            ["Evidence-safe", true],
+            ["Analyzed", readiness.analyzedCoverage >= 0.8],
+            ["Decision-ready", readiness.stage === "decision-ready" || readiness.stage === "blueprint-ready"],
+            ["Blueprint-ready", readiness.stage === "blueprint-ready"],
+          ].map(([label, complete]) => (
+            <span className={complete ? "is-complete" : undefined} key={String(label)}>{complete ? "✓" : "·"} {label}</span>
+          ))}
+        </div>
+        {readiness.blockers.length ? (
+          <div className="readiness-banner__blockers">
+            <span>Next evidence needed</span>
+            <p>{readiness.blockers.slice(0, 3).join(" · ")}</p>
+          </div>
+        ) : null}
       </div>
 
       <div className="decision-score-row">

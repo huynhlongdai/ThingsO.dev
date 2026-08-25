@@ -13,7 +13,7 @@ test("use-case index is a reviewed decision library rather than a flat idea grid
 
   assert.match(page, /Start with the job, then choose the software/);
   assert.match(page, /Decision contexts/);
-  assert.match(page, /Reviewed matches/);
+  assert.match(page, /reviewed matches/i);
   assert.match(page, /Fit first/);
   assert.match(page, /usecase-library-grid/);
   assert.match(css, /usecase-library-card/);

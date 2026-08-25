@@ -13,6 +13,8 @@ def test_evidence_selection_is_diverse_and_bounded() -> None:
         {"type": "blob", "path": "SECURITY.md"},
         {"type": "blob", "path": ".github/workflows/ci.yml"},
         {"type": "blob", "path": "docs/architecture.md"},
+        {"type": "blob", "path": "src/main.py"},
+        {"type": "blob", "path": "CHANGELOG.md"},
         {"type": "blob", "path": "README.md"},
     ]
 
@@ -24,4 +26,39 @@ def test_evidence_selection_is_diverse_and_bounded() -> None:
     assert any(path in selected for path in {"CONTRIBUTING.md", "SECURITY.md"})
     assert ".github/workflows/ci.yml" in selected
     assert "docs/architecture.md" in selected
+    assert "src/main.py" in selected
+    assert "CHANGELOG.md" in selected
     assert "README.md" not in selected
+
+
+def test_source_entrypoint_selection_is_bounded_to_likely_runtime_paths() -> None:
+    tree = [
+        {"type": "blob", "path": "src/main.py"},
+        {"type": "blob", "path": "src/core/orchestrator.py"},
+        {"type": "blob", "path": "examples/deep/demo/main.py"},
+        {"type": "blob", "path": "docs/main.py"},
+        {"type": "blob", "path": "package.json"},
+    ]
+
+    selected = select_evidence_paths(tree)
+
+    assert "src/main.py" in selected
+    assert "src/core/orchestrator.py" in selected
+    assert "examples/deep/demo/main.py" not in selected
+
+
+def test_evolution_documents_compete_as_one_diversity_group() -> None:
+    tree = [
+        {"type": "blob", "path": "package.json"},
+        {"type": "blob", "path": "CHANGELOG.md"},
+        {"type": "blob", "path": "ROADMAP.md"},
+        {"type": "blob", "path": "Dockerfile"},
+        {"type": "blob", "path": "src/main.ts"},
+        {"type": "blob", "path": ".github/workflows/ci.yml"},
+    ]
+
+    selected = select_evidence_paths(tree)
+    evolution = [path for path in selected if path in {"CHANGELOG.md", "ROADMAP.md"}]
+
+    assert len(evolution) >= 1
+    assert "src/main.ts" in selected

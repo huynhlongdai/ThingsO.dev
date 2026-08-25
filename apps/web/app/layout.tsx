@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import "./product.css";
 import "./theme-v2.css";
+import "./surface-v3.css";
 
 const configuredUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const metadataBase = new URL(configuredUrl);

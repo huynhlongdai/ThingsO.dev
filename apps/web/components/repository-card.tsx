@@ -27,13 +27,15 @@ function provenanceKind(source: RepositoryCardData["fitSource"] | RepositoryCard
 export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
   const summaryKind = provenanceKind(repo.summarySource);
   const showFit = Boolean(repo.fitReason && repo.fitSource);
+  const profileHref = `/repos/${repo.owner}/${repo.name}`;
 
   return (
-    <article className="repo-card">
+    <article className="repo-card repo-card--v3">
+      <div className="repo-card__accent" aria-hidden="true" />
       <div className="repo-card__main">
         <div className="repo-card__identity">
           <p className="repo-card__owner">{repo.owner}</p>
-          <h3><Link href={`/repos/${repo.owner}/${repo.name}`}>{repo.name}</Link></h3>
+          <h3><Link href={profileHref}>{repo.name}</Link></h3>
         </div>
         <HealthScore score={repo.healthScore} />
       </div>
@@ -61,7 +63,11 @@ export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
         <span>★ {repo.stars}</span>
         {repo.language ? <span>{repo.language}</span> : null}
         {repo.licenseSpdx ? <span>{repo.licenseSpdx}</span> : null}
-        {repo.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}
+        {repo.tags.slice(0, 3).map((tag) => <span className="tag" key={tag}>{tag}</span>)}
+      </div>
+      <div className="repo-card__footer">
+        <span>{showFit ? "Reviewed fit signal" : "Source-backed profile"}</span>
+        <Link href={profileHref}>Open intelligence →</Link>
       </div>
     </article>
   );

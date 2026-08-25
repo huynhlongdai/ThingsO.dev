@@ -1,0 +1,38 @@
+/* Use-case decision surfaces */
+.surface-hero--usecases,.surface-hero--usecase-detail{border-top-color:rgba(99,223,180,.34)}
+.usecase-hero-stats,.usecase-detail-summary{display:grid;gap:9px}
+.usecase-hero-stats article,.usecase-detail-summary article{padding:16px 17px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(10,17,27,.72)}
+.usecase-hero-stats span,.usecase-detail-summary span{display:block;color:var(--muted);font-size:.66rem;font-weight:820;letter-spacing:.08em;text-transform:uppercase}
+.usecase-hero-stats strong,.usecase-detail-summary strong{display:block;margin-top:6px;font-size:1.55rem;line-height:1.12}
+.usecase-hero-stats small,.usecase-detail-summary small{display:block;margin-top:5px;color:var(--faint);font-size:.7rem;line-height:1.4}
+.usecase-method-strip,.usecase-ranking-explainer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.usecase-method-strip article,.usecase-ranking-explainer>div{min-height:130px;padding:18px;border:1px solid rgba(255,255,255,.07);border-radius:15px;background:linear-gradient(155deg,rgba(14,22,35,.9),rgba(9,14,22,.92))}
+.usecase-method-strip article{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px}
+.usecase-method-strip article>span{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:rgba(99,223,180,.10);color:var(--positive);font-size:.65rem;font-weight:850}
+.usecase-method-strip strong,.usecase-ranking-explainer strong{display:block;color:var(--text-soft);font-size:.9rem;line-height:1.35}
+.usecase-method-strip p,.usecase-ranking-explainer p{margin:7px 0 0;color:var(--muted);font-size:.74rem;line-height:1.5}
+.usecase-ranking-explainer>div>span{display:block;margin-bottom:10px;color:var(--positive);font-size:.65rem;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.usecase-ranking-explainer>div:nth-child(2)>span{color:var(--blue)}
+.usecase-ranking-explainer>div:nth-child(3)>span{color:var(--violet)}
+.surface-section--usecase-library,.surface-section--ranked-fit{border-top-color:rgba(99,223,180,.27)}
+.usecase-library-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.usecase-library-card{min-height:210px;display:flex;flex-direction:column;padding:19px;border:1px solid rgba(255,255,255,.07);border-radius:15px;background:rgba(14,22,35,.82);transition:transform .18s ease,border-color .18s ease}
+.usecase-library-card:hover{transform:translateY(-2px);border-color:rgba(99,223,180,.28)}
+.usecase-library-card--1{border-top-color:rgba(99,223,180,.38)}
+.usecase-library-card--2{border-top-color:rgba(105,215,232,.38)}
+.usecase-library-card--3{border-top-color:rgba(115,168,255,.38)}
+.usecase-library-card--4{border-top-color:rgba(188,164,255,.38)}
+.usecase-library-card__topline{display:flex;justify-content:space-between;gap:12px}
+.usecase-library-card__topline>span{width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.045);color:var(--faint);font-size:.63rem;font-weight:850}
+.usecase-library-card__topline small{color:var(--positive);font-size:.66rem}
+.usecase-library-card>strong{margin-top:25px;font-size:1.12rem;line-height:1.3}
+.usecase-library-card>p{margin:10px 0 20px;color:var(--muted);font-size:.76rem;line-height:1.55}
+.usecase-library-card__action{margin-top:auto;color:var(--accent);font-size:.73rem;font-weight:760}
+.surface-hero--usecase-detail .back-link{display:inline-flex;margin-bottom:20px}
+.use-case-ranked-grid--v3{margin-top:0}
+.use-case-ranked-item--v3{padding-top:13px}
+.use-case-rank--v3{top:0;left:12px;min-width:62px;display:flex;align-items:center;gap:5px;padding:5px 9px;border-color:rgba(99,223,180,.28);background:#10241f;color:var(--positive)}
+.use-case-rank--v3 span{color:#79988d;font-size:.56rem;text-transform:uppercase;letter-spacing:.06em}
+.use-case-rank--v3 strong{font-size:.72rem}
+@media(max-width:1000px){.usecase-library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.usecase-method-strip,.usecase-ranking-explainer,.usecase-library-grid{grid-template-columns:1fr}.usecase-library-card{min-height:180px}}

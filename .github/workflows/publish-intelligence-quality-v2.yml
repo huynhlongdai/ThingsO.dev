@@ -1,73 +1,26 @@
-name: Publish intelligence evidence-only v1
+name: Publish intelligence evidence-depth v1
 
 on:
   workflow_run:
-    workflows: ["Deploy production", "Refresh intelligence evidence"]
+    workflows: ["Refresh intelligence evidence"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: thingso-intelligence-evidence-only-v1
+  group: thingso-intelligence-evidence-depth-v1
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  change-gate:
-    runs-on: ubuntu-latest
-    outputs:
-      needed: ${{ steps.gate.outputs.needed }}
-      head_sha: ${{ steps.gate.outputs.head_sha }}
-    steps:
-      - name: Decide whether evidence-only publication is needed
-        id: gate
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const manual = context.eventName === 'workflow_dispatch';
-            const run = context.payload.workflow_run;
-            const headSha = manual ? context.sha : run.head_sha;
-            core.setOutput('head_sha', headSha);
-            if (manual) {
-              core.setOutput('needed', 'true');
-              return;
-            }
-            if (run.conclusion !== 'success' || run.head_branch !== 'main') {
-              core.setOutput('needed', 'false');
-              return;
-            }
-            // A successful evidence refresh can advance current_snapshot_id even when
-            // application code has not changed. Always reconcile editorial intelligence
-            // after refresh so public current-snapshot coverage cannot drift silently.
-            if (run.name === 'Refresh intelligence evidence') {
-              core.setOutput('needed', 'true');
-              return;
-            }
-            // Deploy-triggered publication remains version/change gated. This prevents
-            // ordinary UI-only deploys from reprocessing all 100 repositories when
-            // current-snapshot intelligence is already reconciled.
-            const response = await github.rest.repos.getCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: headSha,
-              per_page: 100,
-            });
-            const watched = [
-              'apps/worker/src/thingso_worker/quality_editorial.py',
-              'apps/worker/src/thingso_worker/intelligence_models.py',
-              'apps/worker/scripts/generate_quality_intelligence.py',
-              'apps/worker/scripts/import_quality_intelligence.py',
-              'data/seeds/repositories.csv',
-              '.github/workflows/publish-intelligence-quality-v2.yml',
-            ];
-            const files = (response.data.files || []).map(file => file.filename);
-            core.setOutput('needed', files.some(file => watched.includes(file)) ? 'true' : 'false');
-
   publish:
-    needs: change-gate
-    if: needs.change-gate.outputs.needed == 'true'
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      }}
     runs-on: self-hosted
     timeout-minutes: 90
     environment: production
@@ -80,9 +33,6 @@ jobs:
           ROOT="$HOME/thingso-prod"
           RELEASE="$(readlink -f "$ROOT/current")"
           ENV_FILE="$ROOT/shared/.env.production"
-          DEPLOYED_SHA="$(cat "$ROOT/current-sha")"
-          EXPECTED_SHA="${{ needs.change-gate.outputs.head_sha }}"
-          test "$DEPLOYED_SHA" = "$EXPECTED_SHA"
           test -d "$RELEASE"
           test -f "$ENV_FILE"
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
@@ -99,21 +49,25 @@ jobs:
             run --rm worker \
             sh -lc 'uv run --project apps/worker python -m thingso_worker seed-check data/seeds/repositories.csv'
 
-      - name: Check current evidence-only coverage
+      - name: Check current evidence-depth coverage
         id: coverage
         shell: bash
         run: |
           set -euo pipefail
           cd "$THINGSO_RELEASE"
-          COUNT="$(docker compose -p thingso-prod \
+          read -r TOTAL APPROVED <<EOF
+          $(docker compose -p thingso-prod \
             --env-file "$THINGSO_ENV_FILE" \
             -f deploy/compose.prod.yml \
-            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = '\''repository_intelligence'\'' AND a.schema_version = '\''repo-intelligence-v3'\'' AND a.model_provider = '\''editorial'\'' AND a.model_name = '\''evidence-only-editorial-v1'\'' AND a.prompt_version = '\''manual-intelligence-v3-evidence-only-v1'\'' AND a.review_status = '\''approved'\'' AND a.source_snapshot_id = r.current_snapshot_id;"')"
-          echo "approved=$COUNT"
-          echo "approved=$COUNT" >> "$GITHUB_OUTPUT"
+            exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -AtF " " -c "SELECT (SELECT count(*) FROM repositories WHERE current_snapshot_id IS NOT NULL), (SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = '\''repository_intelligence'\'' AND a.schema_version = '\''repo-intelligence-v3'\'' AND a.model_provider = '\''editorial'\'' AND a.model_name = '\''evidence-depth-editorial-v1'\'' AND a.prompt_version = '\''manual-intelligence-v3-evidence-depth-v1'\'' AND a.review_status = '\''approved'\'' AND a.source_snapshot_id = r.current_snapshot_id);"')
+          EOF
+          echo "total=$TOTAL"
+          echo "approved=$APPROVED"
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "approved=$APPROVED" >> "$GITHUB_OUTPUT"
 
-      - name: Generate and import evidence-only profiles
-        if: steps.coverage.outputs.approved < 100
+      - name: Generate and import evidence-depth profiles
+        if: steps.coverage.outputs.approved != steps.coverage.outputs.total
         shell: bash
         run: |
           set -euo pipefail
@@ -125,12 +79,12 @@ jobs:
               set -eu
               uv run --project apps/worker python apps/worker/scripts/generate_quality_intelligence.py \
                 --seed data/seeds/repositories.csv \
-                --output /tmp/editorial-evidence-only-v1.json
+                --output /tmp/editorial-evidence-depth-v1.json
               uv run --project apps/worker python apps/worker/scripts/import_quality_intelligence.py \
-                /tmp/editorial-evidence-only-v1.json
+                /tmp/editorial-evidence-depth-v1.json
             '
 
-      - name: Evidence-only production gate
+      - name: Evidence-depth production gate
         shell: bash
         run: |
           set -euo pipefail
@@ -142,24 +96,24 @@ jobs:
               exec -T postgres sh -lc "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"$1\""
           }
           TOTAL="$(query_db 'SELECT count(*) FROM repositories WHERE current_snapshot_id IS NOT NULL;')"
-          APPROVED="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.model_name = 'evidence-only-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-only-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
-          REVIEW="$(query_db "SELECT count(*) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.model_name = 'evidence-only-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-only-v1' AND a.source_snapshot_id = r.current_snapshot_id AND a.review_status <> 'approved';")"
+          APPROVED="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.model_name = 'evidence-depth-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-depth-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          REVIEW="$(query_db "SELECT count(*) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.model_name = 'evidence-depth-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-depth-v1' AND a.source_snapshot_id = r.current_snapshot_id AND a.review_status <> 'approved';")"
           echo "Current repositories: $TOTAL"
-          echo "Approved evidence-only profiles: $APPROVED"
-          echo "Non-approved evidence-only profiles: $REVIEW"
+          echo "Approved evidence-depth profiles: $APPROVED"
+          echo "Non-approved evidence-depth profiles: $REVIEW"
           {
-            echo "## ThingsO Intelligence Evidence-only v1"
+            echo "## ThingsO Intelligence Evidence-depth v1"
             echo "- Current repositories: $TOTAL"
-            echo "- Approved evidence-only profiles: $APPROVED"
-            echo "- Non-approved current evidence-only profiles: $REVIEW"
-            echo "- Refresh-triggered current-snapshot reconciliation: enabled"
-            echo "- Category-template semantic leakage gate: passed during generation"
-            echo "- Semantic duplicate gate: passed during generation"
+            echo "- Approved evidence-depth profiles: $APPROVED"
+            echo "- Non-approved current evidence-depth profiles: $REVIEW"
+            echo "- Current-snapshot reconciliation: required after every evidence refresh"
+            echo "- Category-template semantic leakage gate: enabled"
+            echo "- Semantic duplicate gate: enabled"
             echo "- Unknown/sparse sections: explicitly allowed"
             echo "- Overall confidence: evidence-coverage weighted"
           } >> "$GITHUB_STEP_SUMMARY"
           test "$TOTAL" -ge 100
-          test "$APPROVED" -ge 100
+          test "$APPROVED" -eq "$TOTAL"
           test "$REVIEW" -eq 0
 
       - name: Production health check

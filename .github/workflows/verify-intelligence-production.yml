@@ -2,7 +2,7 @@ name: Verify production intelligence
 
 on:
   workflow_run:
-    workflows: ["Publish intelligence evidence-only v1"]
+    workflows: ["Publish intelligence evidence-depth v1"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -35,17 +35,10 @@ jobs:
           ENV_FILE="$ROOT/shared/.env.production"
           test -d "$RELEASE"
           test -f "$ENV_FILE"
-
-          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
-            EXPECTED_SHA="${{ github.event.workflow_run.head_sha }}"
-            DEPLOYED_SHA="$(cat "$ROOT/current-sha")"
-            test "$DEPLOYED_SHA" = "$EXPECTED_SHA"
-          fi
-
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 
-      - name: Audit persisted evidence-only profiles
+      - name: Audit persisted evidence-depth profiles
         shell: bash
         run: |
           set -euo pipefail
@@ -81,14 +74,24 @@ jobs:
             echo "Legacy differentiation boilerplate is still visible on the public page."
             exit 1
           fi
+          if ! grep -Fqi "Analyst Team" "$PAGE"; then
+            echo "TradingAgents architecture depth is not visible on the public page."
+            exit 1
+          fi
+          if ! grep -Fqi "Trader Agent" "$PAGE"; then
+            echo "TradingAgents trader component is not visible on the public page."
+            exit 1
+          fi
 
           echo "TradingAgents public route: HTTP 200"
           echo "Legacy semantic phrases: absent"
+          echo "README-backed architecture components: visible"
           {
             echo "## TradingAgents public-page QA"
             echo "- Route: /repos/TauricResearch/TradingAgents"
             echo "- HTTP: 200"
             echo "- Legacy category-template phrases: absent"
+            echo "- README-backed architecture components: visible"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Production health check

@@ -80,6 +80,18 @@ _SOURCE_ENTRYPOINT_NAMES = {
     "main.go",
     "main.rs",
 }
+_RUNTIME_ROOTS = {
+    "src",
+    "app",
+    "apps",
+    "lib",
+    "cmd",
+    "server",
+    "backend",
+    "frontend",
+    "api",
+    "packages",
+}
 _CORE_SOURCE_NAMES = {
     "engine.py",
     "graph.py",
@@ -97,7 +109,7 @@ def _is_source_entrypoint(path: str) -> bool:
     name = pure.name
     depth = len(pure.parts)
     if name in _SOURCE_ENTRYPOINT_NAMES and depth <= 4:
-        return True
+        return depth == 1 or pure.parts[0] in _RUNTIME_ROOTS
     if name not in _CORE_SOURCE_NAMES or depth > 5:
         return False
     return any(

@@ -24,7 +24,7 @@ export default async function UseCasesPage() {
           </div>
           <div className="usecase-hero-stats" aria-label="Use-case dataset summary">
             <article><span>Decision contexts</span><strong>{useCases.length}</strong><small>active reviewed use cases</small></article>
-            <article><span>Reviewed matches</span><strong>{totalMatches}</strong><small>repository-to-use-case relationships</small></article>
+            <article><span>reviewed matches</span><strong>{totalMatches}</strong><small>repository-to-use-case relationships</small></article>
             <article><span>Ranking principle</span><strong>Fit first</strong><small>health remains an independent signal</small></article>
           </div>
         </section>

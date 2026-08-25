@@ -634,6 +634,22 @@ def evidence_only_review_issues(
     return issues
 
 
+def generate_quality_entry(
+    database_url: str,
+    full_name: str,
+    category: str,
+    *,
+    builder: EvidenceBuilder | None = None,
+) -> dict[str, object]:
+    evidence_builder = builder or EvidenceBuilder(database_url, max_source_chars=36_000)
+    bundle = evidence_builder.load_by_full_name(full_name)
+    profile = _semantic_profile(bundle, category)
+    issues = quality_issues(profile)
+    if issues:
+        raise ValueError(f"{full_name}: {'; '.join(issues)}")
+    return {"full_name": full_name, "profile": profile.model_dump(mode="json")}
+
+
 def generate_quality_entries(database_url: str, seed_path: str | Path) -> list[dict[str, object]]:
     builder = EvidenceBuilder(database_url, max_source_chars=36_000)
     entries: list[dict[str, object]] = []
@@ -641,13 +657,17 @@ def generate_quality_entries(database_url: str, seed_path: str | Path) -> list[d
 
     for row in load_seed_rows(seed_path):
         full_name = row["full_name"]
-        bundle = builder.load_by_full_name(full_name)
-        profile = _semantic_profile(bundle, row["category"])
-        issues = quality_issues(profile)
-        if issues:
-            failures.append(f"{full_name}: {'; '.join(issues)}")
-            continue
-        entries.append({"full_name": full_name, "profile": profile.model_dump(mode="json")})
+        try:
+            entries.append(
+                generate_quality_entry(
+                    database_url,
+                    full_name,
+                    row["category"],
+                    builder=builder,
+                )
+            )
+        except ValueError as exc:
+            failures.append(str(exc))
 
     if failures:
         raise ValueError("Repository intelligence evidence-only gate failed:\n" + "\n".join(failures))

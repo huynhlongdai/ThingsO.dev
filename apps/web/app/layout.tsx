@@ -4,7 +4,8 @@ import "./globals.css";
 import "./product.css";
 import "./theme-v2.css";
 import "./surface-v3.css";
-import "./surface-v4.css";
+import "./usecase-v4.css";
+import "./build-v4.css";
 
 const configuredUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const metadataBase = new URL(configuredUrl);

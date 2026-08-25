@@ -8,7 +8,9 @@ def test_evidence_only_workflow_is_versioned_and_fail_closed() -> None:
         encoding="utf-8"
     )
 
-    assert 'workflows: ["Deploy production"]' in workflow
+    assert 'workflows: ["Deploy production", "Refresh intelligence evidence"]' in workflow
+    assert "run.name === 'Refresh intelligence evidence'" in workflow
+    assert "Refresh-triggered current-snapshot reconciliation: enabled" in workflow
     assert "change-gate:" in workflow
     assert "quality_editorial.py" in workflow
     assert "intelligence_models.py" in workflow

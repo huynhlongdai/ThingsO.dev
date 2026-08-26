@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { getCompareRepositories, listRepositories } from "@/lib/data";
 import { getRepositoryIntelligence } from "@/lib/intelligence-data";
 import type { RepositoryIntelligenceV3 } from "@/lib/intelligence";
+import { getRepositoryReadiness } from "@/lib/repository-readiness";
 import { formatCompactNumber } from "@/lib/view-models";
 
 export const metadata = {
@@ -74,13 +75,13 @@ export default async function ComparePage({
             <p className="eyebrow">Decision comparison</p>
             <h1>Compare fit before you compare features.</h1>
             <p className="lede">
-              Select up to four repositories. ThingsO keeps fit, operating reality, evidence gaps and source facts separate so the decision is not reduced to star counts.
+              Select up to four repositories. ThingsO keeps fit, readiness, operating reality, evidence gaps and source facts separate so the decision is not reduced to star counts.
             </p>
           </div>
           <div className="compare-hero-note">
             <span>Comparison rule</span>
             <strong>No universal winner.</strong>
-            <p>The stronger choice depends on your use case, constraints and the evidence available for each project.</p>
+            <p>The stronger choice depends on your use case, constraints, readiness and the evidence available for each project.</p>
           </div>
         </section>
 
@@ -100,7 +101,7 @@ export default async function ComparePage({
             <section className="compare-summary" aria-labelledby="compare-summary-heading">
               <div className="compare-summary__heading">
                 <div><span>02</span><h2 id="compare-summary-heading">Decision snapshot</h2></div>
-                <p>Understand the strongest fit signal, trade-off and evidence gaps before opening the full matrix.</p>
+                <p>Understand fit, readiness, trade-offs and evidence gaps before opening the full matrix.</p>
               </div>
               <div className="compare-summary-grid">
                 {columns.map(({ repository, intelligence: profile }) => {
@@ -109,6 +110,7 @@ export default async function ComparePage({
                     ?? profile?.differentiation.tradeoffsCreatedByDesign[0]
                     ?? "Explicit trade-off not established";
                   const unknowns = majorUnknownCount(profile);
+                  const readiness = profile ? getRepositoryReadiness(profile) : null;
                   return (
                     <article className="compare-summary-card" key={repository.id}>
                       <div className="compare-summary-card__topline">
@@ -120,8 +122,15 @@ export default async function ComparePage({
                       </div>
                       <div className="compare-summary-card__meta">
                         {profile ? <ProvenanceBadge kind="editorial" /> : null}
-                        <span>{profile ? `${Math.round(profile.confidence * 100)}% profile confidence` : "No current V3 profile"}</span>
+                        <span>{profile ? `${Math.round(profile.confidence * 100)}% claim confidence` : "No current V3 profile"}</span>
                       </div>
+                      {readiness ? (
+                        <div className={`compare-readiness compare-readiness--${readiness.stage}`}>
+                          <span>Readiness</span>
+                          <strong>{readiness.label}</strong>
+                          <small>{Math.round(readiness.coverage * 100)}% readiness coverage</small>
+                        </div>
+                      ) : null}
                       <div className="compare-summary-card__signal compare-summary-card__signal--fit">
                         <span>Strongest fit signal</span>
                         <p>{bestFor}</p>
@@ -150,19 +159,30 @@ export default async function ComparePage({
                   <thead>
                     <tr>
                       <th>Decision signal</th>
-                      {columns.map(({ repository, intelligence: profile }) => (
-                        <th key={repository.id}>
-                          <Link href={`/repos/${repository.owner}/${repository.name}`}>{repository.fullName}</Link>
-                          <div className="compare-column-meta">
-                            {profile ? <ProvenanceBadge kind="editorial" /> : null}
-                            <span>{profile ? `V3 · ${Math.round(profile.confidence * 100)}% confidence` : "No current V3 profile"}</span>
-                          </div>
-                        </th>
-                      ))}
+                      {columns.map(({ repository, intelligence: profile }) => {
+                        const readiness = profile ? getRepositoryReadiness(profile) : null;
+                        return (
+                          <th key={repository.id}>
+                            <Link href={`/repos/${repository.owner}/${repository.name}`}>{repository.fullName}</Link>
+                            <div className="compare-column-meta">
+                              {profile ? <ProvenanceBadge kind="editorial" /> : null}
+                              <span>{profile ? `V3 · ${Math.round(profile.confidence * 100)}% claim confidence` : "No current V3 profile"}</span>
+                              {readiness ? <span>{readiness.label} · {Math.round(readiness.coverage * 100)}% readiness</span> : null}
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="compare-group-row"><th colSpan={columns.length + 1}>Fit & decision</th></tr>
+                    <tr>
+                      <th>Readiness</th>
+                      {columns.map(({ repository, intelligence: profile }) => {
+                        const readiness = profile ? getRepositoryReadiness(profile) : null;
+                        return <td key={repository.id}>{readiness ? `${readiness.label} · ${Math.round(readiness.coverage * 100)}%` : "—"}</td>;
+                      })}
+                    </tr>
                     <tr>
                       <th>Best for</th>
                       {columns.map(({ repository, intelligence: profile }) => <td key={repository.id}><ListCell items={profile?.audience.bestFor ?? []} /></td>)}

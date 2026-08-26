@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProvenanceBadge } from "@/components/provenance-badge";
+import { RepositoryBlueprintAction } from "@/components/repository-blueprint-action";
 import { RepositoryDecisionSnapshot } from "@/components/repository-decision-snapshot";
 import { RepositoryIntelligenceV3View } from "@/components/repository-intelligence-v3";
 import { RepositorySectionNav } from "@/components/repository-section-nav";
@@ -95,7 +96,7 @@ export default async function RepositoryPage({
                   <a className="button button--primary" href={repo.githubUrl} rel="noreferrer">View on GitHub ↗</a>
                   {repo.homepageUrl ? <a className="button" href={repo.homepageUrl} rel="noreferrer">Homepage ↗</a> : null}
                   <Link className="button" href={`/compare?repos=${encodeURIComponent(repo.fullName)}`}>Compare</Link>
-                  {intelligence ? <Link className="button button--accent" href={`/repos/${repo.owner}/${repo.name}/blueprint`}>Build Blueprint →</Link> : null}
+                  {intelligence ? <RepositoryBlueprintAction intelligence={intelligence} owner={repo.owner} name={repo.name} /> : null}
                 </div>
               </div>
             </section>

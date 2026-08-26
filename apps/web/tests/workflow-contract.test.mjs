@@ -13,19 +13,19 @@ test("evidence-depth publication reconciles current snapshots without racing leg
   const legacyPublish = await source("../../../.github/workflows/publish-intelligence-v3.yml");
   const verify = await source("../../../.github/workflows/verify-intelligence-production.yml");
 
-  assert.match(refresh, /workflows: \["Deploy production"\]/);
-  assert.match(refresh, /change-gate:/);
-  assert.match(refresh, /const watched = \[/);
-  assert.match(refresh, /semantic_depth\.py/);
-  assert.match(refresh, /files\.some\(file => watched\.includes\(file\)\)/);
+  assert.doesNotMatch(refresh, /workflows: \["Deploy production"\]/);
+  assert.doesNotMatch(refresh, /workflow_run:/);
+  assert.match(refresh, /cron: "17 2 \* \* \*"/);
   assert.match(refresh, /ingest "\$full_name"/);
   assert.match(refresh, /--repository "\$full_name"/);
   assert.match(refresh, /import_quality_intelligence\.py "\$output"/);
   assert.match(refresh, /test "\$DEPTH" -eq "\$REPOS"/);
+  assert.match(refresh, /test "\$REVIEW" -eq 0/);
 
   assert.match(depthPublish, /^name: Publish intelligence evidence-depth v1/m);
-  assert.match(depthPublish, /workflows: \["Refresh intelligence evidence"\]/);
-  assert.doesNotMatch(depthPublish, /workflows: \["Deploy production"/);
+  assert.match(depthPublish, /workflows: \["Deploy production", "Refresh intelligence evidence"\]/);
+  assert.match(depthPublish, /if \(run\.name === 'Refresh intelligence evidence'\)/);
+  assert.match(depthPublish, /files\.some\(file => watched\.includes\(file\)\)/);
   assert.match(depthPublish, /evidence-depth-editorial-v1/);
   assert.match(depthPublish, /manual-intelligence-v3-evidence-depth-v1/);
   assert.match(depthPublish, /source_snapshot_id = r\.current_snapshot_id/);

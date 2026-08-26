@@ -7,8 +7,9 @@ from .models import SourceDocument
 from .normalization import make_source_document
 
 MAX_TREE_LINES = 700
-# Five selected files keeps the curated-100 refresh near the proven API-call budget while
-# V3 improves evidence diversity by adding source-entrypoint and evolution classes.
+# Five selected files keeps the curated-100 refresh within the proven Actions API budget.
+# Evidence Pack v3 improves depth by reserving diversity for likely runtime/source entrypoints
+# before lower-value documentation/evolution fallbacks.
 MAX_SELECTED_FILES = 5
 
 _MANIFESTS = {
@@ -157,7 +158,10 @@ def _priority(path: str) -> tuple[int, int, str] | None:
     if name in _CONTAINER_FILES:
         return (12 if depth == 1 else 20, depth, lower)
     if _is_source_entrypoint(path):
-        return (14 if depth == 1 else 26, depth, lower)
+        # Runtime/source evidence is the biggest V3 depth improvement. Rank nested
+        # entrypoints ahead of project docs/evolution so the five-file budget cannot
+        # be consumed before at least one likely execution path is considered.
+        return (14 if depth == 1 else 19, depth, lower)
     if name in _CONFIG_FILES:
         return (22, depth, lower)
     if name in _PROJECT_DOCS:

@@ -9,8 +9,10 @@ def test_evidence_depth_workflow_is_versioned_and_fail_closed() -> None:
     )
 
     assert workflow.startswith("name: Publish intelligence evidence-depth v1")
-    assert 'workflows: ["Refresh intelligence evidence"]' in workflow
-    assert "Deploy production" not in workflow
+    assert 'workflows: ["Deploy production", "Refresh intelligence evidence"]' in workflow
+    assert "change-gate:" in workflow
+    assert "if (run.name === 'Refresh intelligence evidence')" in workflow
+    assert "files.some(file => watched.includes(file))" in workflow
     assert "generate_quality_intelligence.py" in workflow
     assert "import_quality_intelligence.py" in workflow
     assert "manual-intelligence-v3-evidence-depth-v1" in workflow
@@ -18,7 +20,8 @@ def test_evidence_depth_workflow_is_versioned_and_fail_closed() -> None:
     assert "source_snapshot_id = r.current_snapshot_id" in workflow
     assert 'test "$APPROVED" -eq "$TOTAL"' in workflow
     assert 'test "$REVIEW" -eq 0' in workflow
-    assert "Current-snapshot reconciliation: required after every evidence refresh" in workflow
+    assert "Refresh-triggered current-snapshot reconciliation: enabled" in workflow
+    assert "Deploy-triggered publication: version/change gated" in workflow
     assert "Category-template semantic leakage gate: enabled" in workflow
     assert "Semantic duplicate gate: enabled" in workflow
     assert "Unknown/sparse sections: explicitly allowed" in workflow

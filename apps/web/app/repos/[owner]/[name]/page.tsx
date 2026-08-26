@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DecisionLink } from "@/components/decision-event";
 import { ProvenanceBadge } from "@/components/provenance-badge";
 import { RepositoryBlueprintAction } from "@/components/repository-blueprint-action";
 import { RepositoryDecisionSnapshot } from "@/components/repository-decision-snapshot";
+import { RepositoryEvidenceDrawer } from "@/components/repository-evidence-drawer";
 import { RepositoryIntelligenceV3View } from "@/components/repository-intelligence-v3";
 import { RepositorySectionNav } from "@/components/repository-section-nav";
 import { SiteHeader } from "@/components/site-header";
@@ -53,6 +55,7 @@ export default async function RepositoryPage({
   if (!repo) notFound();
 
   const heroSummary = intelligence?.identity.definition ?? repo.summary;
+  const compareHref = `/compare?repos=${encodeURIComponent(repo.fullName)}`;
 
   return (
     <main id="main-content">
@@ -95,7 +98,15 @@ export default async function RepositoryPage({
                 <div className="repo-hero__actions">
                   <a className="button button--primary" href={repo.githubUrl} rel="noreferrer">View on GitHub ↗</a>
                   {repo.homepageUrl ? <a className="button" href={repo.homepageUrl} rel="noreferrer">Homepage ↗</a> : null}
-                  <Link className="button" href={`/compare?repos=${encodeURIComponent(repo.fullName)}`}>Compare</Link>
+                  <DecisionLink
+                    className="button"
+                    href={compareHref}
+                    eventType="repository_compare"
+                    sourceSurface="repository"
+                    repositoryFullName={repo.fullName}
+                  >
+                    Compare
+                  </DecisionLink>
                   {intelligence ? <RepositoryBlueprintAction intelligence={intelligence} owner={repo.owner} name={repo.name} /> : null}
                 </div>
               </div>
@@ -154,7 +165,16 @@ export default async function RepositoryPage({
                     {repo.buildIdeas.map((idea) => (
                       <article className="use-case-card" key={idea.id}>
                         <span>Build idea</span>
-                        <h3><Link href={`/ideas/${idea.slug}`}>{idea.title}</Link></h3>
+                        <h3>
+                          <DecisionLink
+                            href={`/ideas/${idea.slug}`}
+                            eventType="build_idea_open"
+                            sourceSurface="repository"
+                            repositoryFullName={repo.fullName}
+                          >
+                            {idea.title}
+                          </DecisionLink>
+                        </h3>
                         <p>{idea.problem}</p>
                         <ProvenanceBadge kind={intelligence ? "editorial" : "ai_inference"} />
                       </article>
@@ -197,18 +217,7 @@ export default async function RepositoryPage({
                 <Metric label="Snapshot" value={new Date(repo.capturedAt).toLocaleDateString("en-CA")} />
               </div>
 
-              {repo.sources.length ? (
-                <details className="evidence-drawer">
-                  <summary>View {repo.sources.length} captured evidence documents</summary>
-                  <div className="source-list">
-                    {repo.sources.map((source) => (
-                      <a href={source.sourceUrl} rel="noreferrer" key={`${source.documentType}-${source.sourceUrl}`}>
-                        <strong>{source.documentType}</strong><span>{source.ref ?? "default ref"}</span><code>{source.contentHash.slice(0, 10)}…</code>
-                      </a>
-                    ))}
-                  </div>
-                </details>
-              ) : <p className="empty-evidence">No source documents captured yet.</p>}
+              <RepositoryEvidenceDrawer sources={repo.sources} repositoryFullName={repo.fullName} />
             </section>
           </div>
 
@@ -218,7 +227,14 @@ export default async function RepositoryPage({
               <span>Decision tools</span>
               <strong>Need a side-by-side view?</strong>
               <p>Compare this repository against alternatives using the same evidence-backed criteria.</p>
-              <Link href={`/compare?repos=${encodeURIComponent(repo.fullName)}`}>Compare now →</Link>
+              <DecisionLink
+                href={compareHref}
+                eventType="repository_compare"
+                sourceSurface="repository"
+                repositoryFullName={repo.fullName}
+              >
+                Compare now →
+              </DecisionLink>
             </section>
           </aside>
         </div>

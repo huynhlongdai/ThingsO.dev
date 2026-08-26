@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { DecisionLink } from "./decision-event";
 import { HealthScore } from "./health-score";
 import { ProvenanceBadge } from "./provenance-badge";
+import type { DecisionEventType, DecisionSurface } from "@/lib/decision-analytics";
 
 export type RepositoryCardData = {
   owner: string;
@@ -16,6 +18,11 @@ export type RepositoryCardData = {
   fitSource?: "source" | "ai_inference" | "editorial" | null;
   showCompareAction?: boolean;
   tags: string[];
+  analytics?: {
+    openEventType: DecisionEventType;
+    sourceSurface: DecisionSurface;
+    useCaseSlug?: string | null;
+  };
 };
 
 function provenanceKind(source: RepositoryCardData["fitSource"] | RepositoryCardData["summarySource"]) {
@@ -24,10 +31,26 @@ function provenanceKind(source: RepositoryCardData["fitSource"] | RepositoryCard
   return "source_fact" as const;
 }
 
+function ProfileLink({ repo, children, className }: { repo: RepositoryCardData; children: React.ReactNode; className?: string }) {
+  const profileHref = `/repos/${repo.owner}/${repo.name}`;
+  if (!repo.analytics) return <Link href={profileHref} className={className}>{children}</Link>;
+  return (
+    <DecisionLink
+      href={profileHref}
+      className={className}
+      eventType={repo.analytics.openEventType}
+      sourceSurface={repo.analytics.sourceSurface}
+      repositoryFullName={`${repo.owner}/${repo.name}`}
+      useCaseSlug={repo.analytics.useCaseSlug}
+    >
+      {children}
+    </DecisionLink>
+  );
+}
+
 export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
   const summaryKind = provenanceKind(repo.summarySource);
   const showFit = Boolean(repo.fitReason && repo.fitSource);
-  const profileHref = `/repos/${repo.owner}/${repo.name}`;
 
   return (
     <article className="repo-card repo-card--v3">
@@ -35,7 +58,7 @@ export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
       <div className="repo-card__main">
         <div className="repo-card__identity">
           <p className="repo-card__owner">{repo.owner}</p>
-          <h3><Link href={profileHref}>{repo.name}</Link></h3>
+          <h3><ProfileLink repo={repo}>{repo.name}</ProfileLink></h3>
         </div>
         <HealthScore score={repo.healthScore} />
       </div>
@@ -52,9 +75,22 @@ export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
             ) : null}
             <span>{repo.fitReason}</span>
             {repo.showCompareAction ? (
-              <Link className="text-link" href={`/compare?repos=${encodeURIComponent(`${repo.owner}/${repo.name}`)}`}>
-                Compare this repository →
-              </Link>
+              repo.analytics ? (
+                <DecisionLink
+                  className="text-link"
+                  href={`/compare?repos=${encodeURIComponent(`${repo.owner}/${repo.name}`)}`}
+                  eventType="repository_compare"
+                  sourceSurface={repo.analytics.sourceSurface}
+                  repositoryFullName={`${repo.owner}/${repo.name}`}
+                  useCaseSlug={repo.analytics.useCaseSlug}
+                >
+                  Compare this repository →
+                </DecisionLink>
+              ) : (
+                <Link className="text-link" href={`/compare?repos=${encodeURIComponent(`${repo.owner}/${repo.name}`)}`}>
+                  Compare this repository →
+                </Link>
+              )
             ) : null}
           </div>
         </div>
@@ -67,7 +103,7 @@ export function RepositoryCard({ repo }: { repo: RepositoryCardData }) {
       </div>
       <div className="repo-card__footer">
         <span>{showFit ? "Reviewed fit signal" : "Source-backed profile"}</span>
-        <Link href={profileHref}>Open intelligence →</Link>
+        <ProfileLink repo={repo}>Open intelligence →</ProfileLink>
       </div>
     </article>
   );

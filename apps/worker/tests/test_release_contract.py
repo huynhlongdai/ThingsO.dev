@@ -24,11 +24,14 @@ def test_https_proxy_targets_web_service():
     assert "Strict-Transport-Security" in caddy
 
 
-def test_evidence_pack_v2_document_types_are_allowed_in_production_schema():
-    migration = (ROOT / "packages/db/migrations/0003_evidence_pack_document_types.sql").read_text(
+def test_evidence_pack_v3_document_types_are_allowed_in_production_schema():
+    migration_v2 = (ROOT / "packages/db/migrations/0003_evidence_pack_document_types.sql").read_text(
         encoding="utf-8"
     )
-    expected = {
+    migration_v3 = (ROOT / "packages/db/migrations/0005_evidence_pack_v3_document_types.sql").read_text(
+        encoding="utf-8"
+    )
+    for document_type in {
         "readme",
         "documentation",
         "package",
@@ -42,12 +45,13 @@ def test_evidence_pack_v2_document_types_are_allowed_in_production_schema():
         "architecture",
         "ci",
         "source_entrypoint",
-    }
-    for document_type in expected:
-        assert f"'{document_type}'" in migration
+    }:
+        assert f"'{document_type}'" in migration_v2
+    assert "'source_entrypoint'" in migration_v3
+    assert "'changelog'" in migration_v3
 
 
-def test_evidence_refresh_fails_when_any_curated_repository_cannot_be_ingested():
+def test_evidence_refresh_fails_when_any_curated_repository_cannot_be_reconciled():
     workflow = (ROOT / ".github/workflows/refresh-intelligence-evidence.yml").read_text(
         encoding="utf-8"
     )
@@ -58,9 +62,10 @@ def test_evidence_refresh_fails_when_any_curated_repository_cannot_be_ingested()
     assert "--repository \"$full_name\"" in workflow
     assert "import_quality_intelligence.py \"$output\"" in workflow
     assert 'test "$DEPTH" -eq "$REPOS"' in workflow
+    assert 'test "$REVIEW" -eq 0' in workflow
 
 
-def test_data_maintenance_is_change_gated_from_application_deploys():
+def test_data_maintenance_remains_decoupled_from_application_deploys():
     refresh = (ROOT / ".github/workflows/refresh-intelligence-evidence.yml").read_text(
         encoding="utf-8"
     )
@@ -74,11 +79,10 @@ def test_data_maintenance_is_change_gated_from_application_deploys():
 
     assert "workflow_dispatch:" in refresh
     assert 'cron: "17 2 * * *"' in refresh
-    assert 'workflows: ["Deploy production"]' in refresh
-    assert "change-gate:" in refresh
-    assert "const watched = [" in refresh
-    assert "semantic_depth.py" in refresh
-    assert "files.some(file => watched.includes(file))" in refresh
+    assert "Deploy production" not in refresh
+    assert "workflow_run:" not in refresh
+    assert "refresh + reconcile" in refresh
+    assert "semantic_depth.py" not in refresh  # execution is encapsulated by generation script
 
     assert "workflow_dispatch:" in activation
     assert "Deploy production" not in activation
@@ -88,5 +92,7 @@ def test_data_maintenance_is_change_gated_from_application_deploys():
     assert "workflow_dispatch:" in legacy_publish
     assert "workflow_run:" not in legacy_publish
 
-    assert 'workflows: ["Refresh intelligence evidence"]' in depth_publish
-    assert "Deploy production" not in depth_publish
+    assert 'workflows: ["Deploy production", "Refresh intelligence evidence"]' in depth_publish
+    assert "if (run.name === 'Refresh intelligence evidence')" in depth_publish
+    assert "files.some(file => watched.includes(file))" in depth_publish
+    assert "UI-only releases must not reprocess all curated repositories" in depth_publish

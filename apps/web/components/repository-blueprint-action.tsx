@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { DecisionLink } from "@/components/decision-event";
 import type { RepositoryIntelligenceV3 } from "@/lib/intelligence";
 import { getRepositoryReadiness } from "@/lib/repository-readiness";
 
@@ -13,18 +13,25 @@ export function RepositoryBlueprintAction({
 }) {
   const readiness = getRepositoryReadiness(intelligence);
   const href = `/repos/${owner}/${name}/blueprint`;
+  const common = {
+    href,
+    className: "button button--accent",
+    eventType: "repository_blueprint" as const,
+    sourceSurface: "repository" as const,
+    repositoryFullName: `${owner}/${name}`,
+    readinessStage: readiness.stage,
+  };
 
   if (readiness.stage === "blueprint-ready") {
-    return <Link className="button button--accent" href={href}>Build Blueprint →</Link>;
+    return <DecisionLink {...common}>Build Blueprint →</DecisionLink>;
   }
 
   return (
-    <Link
-      className="button button--accent"
-      href={href}
+    <DecisionLink
+      {...common}
       title={`${readiness.label}: ${readiness.blockers.slice(0, 2).join("; ")}`}
     >
       Check blueprint readiness →
-    </Link>
+    </DecisionLink>
   );
 }

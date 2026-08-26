@@ -117,6 +117,10 @@ export default async function SearchPage({
                   repo={{
                     ...repo,
                     stars: formatCompactNumber(repo.stars),
+                    analytics: {
+                      openEventType: "search_result_open",
+                      sourceSurface: "search",
+                    },
                   }}
                 />
               ))

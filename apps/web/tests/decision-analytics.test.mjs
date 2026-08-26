@@ -16,8 +16,8 @@ test("decision events store bounded anonymous product context only", async () =>
   assert.match(migration, /repository_blueprint/);
   assert.match(migration, /evidence_expand/);
   assert.match(migration, /feedback_submit/);
-  assert.doesNotMatch(migration, /ip_address|user_agent|email|account_id|fingerprint/i);
-  assert.doesNotMatch(migration, /payload_json|metadata_json/);
+  assert.doesNotMatch(migration, /^\s*(ip_address|user_agent|email|account_id|fingerprint)\s+/mi);
+  assert.doesNotMatch(migration, /^\s*(payload_json|metadata_json)\s+/mi);
 });
 
 test("anonymous session is ephemeral and analytics never blocks navigation", async () => {

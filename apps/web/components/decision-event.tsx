@@ -18,7 +18,7 @@ type EventContext = {
   readinessStage?: DecisionReadinessStage | null;
 };
 
-function sessionId(): string | null {
+export function getDecisionSessionId(): string | null {
   try {
     const existing = sessionStorage.getItem(SESSION_KEY);
     if (existing) return existing;
@@ -31,7 +31,7 @@ function sessionId(): string | null {
 }
 
 export function recordDecisionClientEvent(context: EventContext): void {
-  const anonymousSessionId = sessionId();
+  const anonymousSessionId = getDecisionSessionId();
   if (!anonymousSessionId) return;
   void fetch("/api/analytics/event", {
     method: "POST",

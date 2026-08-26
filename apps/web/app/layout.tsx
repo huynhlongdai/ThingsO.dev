@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { DecisionAnalyticsObserver } from "@/components/decision-analytics-observer";
 import "./globals.css";
 import "./product.css";
 import "./theme-v2.css";
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body>
         <a className="skip-link" href="#app-content">Skip to content</a>
+        <DecisionAnalyticsObserver />
         <div id="app-content" tabIndex={-1}>{children}</div>
       </body>
       {analyticsToken ? (

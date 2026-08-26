@@ -3,10 +3,6 @@ name: Refresh intelligence evidence
 on:
   schedule:
     - cron: "17 2 * * *"
-  workflow_run:
-    workflows: ["Deploy production"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -17,53 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  change-gate:
-    runs-on: ubuntu-latest
-    outputs:
-      needed: ${{ steps.gate.outputs.needed }}
-      head_sha: ${{ steps.gate.outputs.head_sha }}
-    steps:
-      - name: Decide whether refresh is needed
-        id: gate
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const recurring = context.eventName === 'schedule' || context.eventName === 'workflow_dispatch';
-            if (recurring) {
-              core.setOutput('head_sha', context.sha);
-              core.setOutput('needed', 'true');
-              return;
-            }
-
-            const run = context.payload.workflow_run;
-            core.setOutput('head_sha', run.head_sha);
-            if (run.conclusion !== 'success' || run.head_branch !== 'main') {
-              core.setOutput('needed', 'false');
-              return;
-            }
-
-            const response = await github.rest.repos.getCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: run.head_sha,
-              per_page: 100,
-            });
-            const watched = [
-              'apps/worker/src/thingso_worker/evidence_pack.py',
-              'apps/worker/src/thingso_worker/quality_editorial.py',
-              'apps/worker/src/thingso_worker/semantic_depth.py',
-              'apps/worker/scripts/generate_quality_intelligence.py',
-              'apps/worker/scripts/import_quality_intelligence.py',
-              'data/seeds/repositories.csv',
-              '.github/workflows/refresh-intelligence-evidence.yml',
-              '.github/workflows/publish-intelligence-quality-v2.yml',
-            ];
-            const files = (response.data.files || []).map(file => file.filename);
-            core.setOutput('needed', files.some(file => watched.includes(file)) ? 'true' : 'false');
-
   refresh:
-    needs: change-gate
-    if: needs.change-gate.outputs.needed == 'true'
     runs-on: self-hosted
     timeout-minutes: 120
     environment: production
@@ -80,13 +30,6 @@ jobs:
           ENV_FILE="$ROOT/shared/.env.production"
           test -d "$RELEASE"
           test -f "$ENV_FILE"
-
-          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
-            DEPLOYED_SHA="$(cat "$ROOT/current-sha")"
-            EXPECTED_SHA="${{ needs.change-gate.outputs.head_sha }}"
-            test "$DEPLOYED_SHA" = "$EXPECTED_SHA"
-          fi
-
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 
@@ -170,6 +113,7 @@ jobs:
           EVOLUTION="$(query_db "SELECT count(DISTINCT repository_id) FROM source_documents WHERE document_type = 'changelog';")"
           PACK3="$(query_db "SELECT count(*) FROM (SELECT repository_id FROM source_documents GROUP BY repository_id HAVING count(DISTINCT document_type) >= 3) q;")"
           DEPTH="$(query_db "SELECT count(DISTINCT a.repository_id) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.analysis_type = 'repository_intelligence' AND a.schema_version = 'repo-intelligence-v3' AND a.model_provider = 'editorial' AND a.model_name = 'evidence-depth-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-depth-v1' AND a.review_status = 'approved' AND a.source_snapshot_id = r.current_snapshot_id;")"
+          REVIEW="$(query_db "SELECT count(*) FROM ai_analyses a JOIN repositories r ON r.id = a.repository_id WHERE a.model_name = 'evidence-depth-editorial-v1' AND a.prompt_version = 'manual-intelligence-v3-evidence-depth-v1' AND a.source_snapshot_id = r.current_snapshot_id AND a.review_status <> 'approved';")"
           DOCS="$(query_db 'SELECT count(*) FROM source_documents;')"
 
           echo "Repositories: $REPOS"
@@ -180,6 +124,7 @@ jobs:
           echo "Evolution/changelog coverage: $EVOLUTION"
           echo "Repositories with >=3 evidence document types: $PACK3"
           echo "Current-snapshot evidence-depth profiles: $DEPTH"
+          echo "Non-approved current evidence-depth profiles: $REVIEW"
           echo "Total source documents: $DOCS"
 
           {
@@ -192,6 +137,7 @@ jobs:
             echo "- Evolution/changelog coverage: $EVOLUTION"
             echo "- >=3 evidence types: $PACK3"
             echo "- Current-snapshot evidence-depth profiles: $DEPTH"
+            echo "- Non-approved current evidence-depth profiles: $REVIEW"
             echo "- Source documents: $DOCS"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -201,6 +147,7 @@ jobs:
           test "$TECHNICAL" -ge 100
           test "$PACK3" -ge 100
           test "$DEPTH" -eq "$REPOS"
+          test "$REVIEW" -eq 0
 
       - name: Production health check
         shell: bash

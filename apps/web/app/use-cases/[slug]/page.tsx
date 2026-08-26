@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DecisionLink } from "@/components/decision-event";
 import { RepositoryCard } from "@/components/repository-card";
 import { SiteHeader } from "@/components/site-header";
 import { getReviewedUseCase } from "@/lib/use-case-data";
@@ -42,7 +43,15 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
               <h1>{result.useCase.title}</h1>
               <p className="lede">{result.useCase.description ?? "Reviewed repository fit for this job-to-be-done."}</p>
               <div className="surface-hero__actions">
-                <Link className="button button--primary" href={compareHref}>Compare top matches</Link>
+                <DecisionLink
+                  className="button button--primary"
+                  href={compareHref}
+                  eventType="repository_compare"
+                  sourceSurface="use-case"
+                  useCaseSlug={slug}
+                >
+                  Compare top matches
+                </DecisionLink>
                 <Link className="button" href={`/search?q=${encodeURIComponent(result.useCase.title)}`}>Search this intent</Link>
               </div>
             </div>
@@ -89,6 +98,11 @@ export default async function UseCasePage({ params }: { params: Promise<{ slug: 
                       fitSource: repo.fitSource,
                       showCompareAction: true,
                       tags: repo.tags,
+                      analytics: {
+                        openEventType: "use_case_repository_open",
+                        sourceSurface: "use-case",
+                        useCaseSlug: slug,
+                      },
                     }}
                   />
                 </div>

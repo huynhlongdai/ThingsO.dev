@@ -2,7 +2,7 @@ name: Publish intelligence evidence-depth v1
 
 on:
   workflow_run:
-    workflows: ["Refresh intelligence evidence"]
+    workflows: ["Deploy production", "Refresh intelligence evidence"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -15,12 +15,63 @@ permissions:
   contents: read
 
 jobs:
+  change-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.gate.outputs.needed }}
+      head_sha: ${{ steps.gate.outputs.head_sha }}
+      trigger_name: ${{ steps.gate.outputs.trigger_name }}
+    steps:
+      - name: Decide whether evidence-depth publication is needed
+        id: gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const manual = context.eventName === 'workflow_dispatch';
+            const run = context.payload.workflow_run;
+            const headSha = manual ? context.sha : run.head_sha;
+            const triggerName = manual ? 'workflow_dispatch' : run.name;
+            core.setOutput('head_sha', headSha);
+            core.setOutput('trigger_name', triggerName);
+            if (manual) {
+              core.setOutput('needed', 'true');
+              return;
+            }
+            if (run.conclusion !== 'success' || run.head_branch !== 'main') {
+              core.setOutput('needed', 'false');
+              return;
+            }
+            // Refresh can advance current_snapshot_id. Always verify/reconcile the
+            // evidence-depth profile after a successful refresh, even if app code did not change.
+            if (run.name === 'Refresh intelligence evidence') {
+              core.setOutput('needed', 'true');
+              return;
+            }
+            // A normal deploy only republishes when versioned intelligence inputs changed.
+            // UI-only releases must not reprocess all curated repositories.
+            const response = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: headSha,
+              per_page: 100,
+            });
+            const watched = [
+              'apps/worker/src/thingso_worker/evidence_pack.py',
+              'apps/worker/src/thingso_worker/quality_editorial.py',
+              'apps/worker/src/thingso_worker/semantic_depth.py',
+              'apps/worker/scripts/generate_quality_intelligence.py',
+              'apps/worker/scripts/import_quality_intelligence.py',
+              'packages/db/migrations/0005_evidence_pack_v3_document_types.sql',
+              'data/seeds/repositories.csv',
+              '.github/workflows/publish-intelligence-quality-v2.yml',
+              '.github/workflows/refresh-intelligence-evidence.yml',
+            ];
+            const files = (response.data.files || []).map(file => file.filename);
+            core.setOutput('needed', files.some(file => watched.includes(file)) ? 'true' : 'false');
+
   publish:
-    if: >-
-      ${{
-        github.event_name == 'workflow_dispatch' ||
-        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
-      }}
+    needs: change-gate
+    if: needs.change-gate.outputs.needed == 'true'
     runs-on: self-hosted
     timeout-minutes: 90
     environment: production
@@ -35,6 +86,15 @@ jobs:
           ENV_FILE="$ROOT/shared/.env.production"
           test -d "$RELEASE"
           test -f "$ENV_FILE"
+
+          # Deploy-triggered publication must operate on the exact deployed release.
+          # Refresh-triggered publication uses the release that the refresh itself just reconciled.
+          if [ "${{ needs.change-gate.outputs.trigger_name }}" = "Deploy production" ]; then
+            DEPLOYED_SHA="$(cat "$ROOT/current-sha")"
+            EXPECTED_SHA="${{ needs.change-gate.outputs.head_sha }}"
+            test "$DEPLOYED_SHA" = "$EXPECTED_SHA"
+          fi
+
           echo "THINGSO_RELEASE=$RELEASE" >> "$GITHUB_ENV"
           echo "THINGSO_ENV_FILE=$ENV_FILE" >> "$GITHUB_ENV"
 
@@ -106,7 +166,8 @@ jobs:
             echo "- Current repositories: $TOTAL"
             echo "- Approved evidence-depth profiles: $APPROVED"
             echo "- Non-approved current evidence-depth profiles: $REVIEW"
-            echo "- Current-snapshot reconciliation: required after every evidence refresh"
+            echo "- Refresh-triggered current-snapshot reconciliation: enabled"
+            echo "- Deploy-triggered publication: version/change gated"
             echo "- Category-template semantic leakage gate: enabled"
             echo "- Semantic duplicate gate: enabled"
             echo "- Unknown/sparse sections: explicitly allowed"

@@ -64,6 +64,7 @@ export function DecisionLink({
       href={href}
       className={className}
       title={title}
+      data-decision-tracked="true"
       onClick={() => recordDecisionClientEvent({
         eventType,
         sourceSurface,
@@ -89,6 +90,7 @@ export function DecisionDetails({
   return (
     <details
       className={className}
+      data-decision-tracked="true"
       onToggle={(event) => {
         if (event.currentTarget.open) {
           recordDecisionClientEvent({

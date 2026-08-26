@@ -3,34 +3,37 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_evidence_only_workflow_is_versioned_and_fail_closed() -> None:
+def test_evidence_depth_workflow_is_versioned_and_fail_closed() -> None:
     workflow = (ROOT / ".github/workflows/publish-intelligence-quality-v2.yml").read_text(
         encoding="utf-8"
     )
 
+    assert workflow.startswith("name: Publish intelligence evidence-depth v1")
     assert 'workflows: ["Deploy production", "Refresh intelligence evidence"]' in workflow
-    assert "run.name === 'Refresh intelligence evidence'" in workflow
-    assert "Refresh-triggered current-snapshot reconciliation: enabled" in workflow
     assert "change-gate:" in workflow
-    assert "quality_editorial.py" in workflow
-    assert "intelligence_models.py" in workflow
+    assert "if (run.name === 'Refresh intelligence evidence')" in workflow
+    assert "files.some(file => watched.includes(file))" in workflow
     assert "generate_quality_intelligence.py" in workflow
     assert "import_quality_intelligence.py" in workflow
-    assert "manual-intelligence-v3-evidence-only-v1" in workflow
-    assert "evidence-only-editorial-v1" in workflow
-    assert 'test "$APPROVED" -ge 100' in workflow
+    assert "manual-intelligence-v3-evidence-depth-v1" in workflow
+    assert "evidence-depth-editorial-v1" in workflow
+    assert "source_snapshot_id = r.current_snapshot_id" in workflow
+    assert 'test "$APPROVED" -eq "$TOTAL"' in workflow
     assert 'test "$REVIEW" -eq 0' in workflow
-    assert "Category-template semantic leakage gate: passed during generation" in workflow
-    assert "Semantic duplicate gate: passed during generation" in workflow
+    assert "Refresh-triggered current-snapshot reconciliation: enabled" in workflow
+    assert "Deploy-triggered publication: version/change gated" in workflow
+    assert "Category-template semantic leakage gate: enabled" in workflow
+    assert "Semantic duplicate gate: enabled" in workflow
     assert "Unknown/sparse sections: explicitly allowed" in workflow
     assert "Overall confidence: evidence-coverage weighted" in workflow
 
 
-def test_status_beacon_reports_evidence_only_v1() -> None:
+def test_status_beacon_reports_evidence_depth_v1() -> None:
     beacon = (ROOT / ".github/workflows/production-status-beacon.yml").read_text(
         encoding="utf-8"
     )
-    assert "Publish intelligence evidence-only v1" in beacon
+    assert "Publish intelligence evidence-depth v1" in beacon
+    assert "Legacy publish repository intelligence v3" in beacon
 
 
 def test_quality_contract_documents_accuracy_before_completeness() -> None:

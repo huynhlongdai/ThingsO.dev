@@ -5,7 +5,8 @@ import json
 import psycopg
 
 from thingso_worker.intelligence_models import RepositoryIntelligenceProfileV3
-from thingso_worker.quality_editorial import QUALITY_MODEL, QUALITY_PROMPT_VERSION, quality_issues
+from thingso_worker.quality_editorial import quality_issues
+from thingso_worker.semantic_depth import DEPTH_MODEL, DEPTH_PROMPT_VERSION
 from thingso_worker.settings import Settings
 
 TARGET_REPOSITORY = "TauricResearch/TradingAgents"
@@ -36,7 +37,7 @@ def main() -> None:
                   AND a.review_status = 'approved'
                 ORDER BY r.id, a.created_at DESC
                 """,
-                (QUALITY_MODEL, QUALITY_PROMPT_VERSION),
+                (DEPTH_MODEL, DEPTH_PROMPT_VERSION),
             )
             rows = cur.fetchall()
 
@@ -51,7 +52,7 @@ def main() -> None:
                   AND a.prompt_version = %s
                   AND a.review_status <> 'approved'
                 """,
-                (QUALITY_MODEL, QUALITY_PROMPT_VERSION),
+                (DEPTH_MODEL, DEPTH_PROMPT_VERSION),
             )
             non_approved = int(cur.fetchone()[0])
 
@@ -78,28 +79,47 @@ def main() -> None:
                 "why_it_matters": profile.problem.why_it_matters,
                 "differentiators": profile.differentiation.differentiators,
                 "unique_capabilities": profile.differentiation.unique_capabilities,
-                "architecture_components": len(profile.architecture.components),
+                "capabilities": profile.capabilities,
+                "limitations": profile.limitations,
+                "architecture_overview": profile.architecture.overview,
+                "architecture_components": [
+                    {
+                        "name": component.name,
+                        "responsibility": component.responsibility,
+                    }
+                    for component in profile.architecture.components
+                ],
+                "persistence_model": profile.architecture.persistence_model.value,
+                "architecture_confidence": profile.section_confidence.get("architecture"),
                 "overall_confidence": profile.confidence,
                 "stored_confidence": float(stored_confidence),
-                "provider_model": QUALITY_MODEL,
-                "prompt_version": QUALITY_PROMPT_VERSION,
+                "provider_model": DEPTH_MODEL,
+                "prompt_version": DEPTH_PROMPT_VERSION,
             }
 
     if current_repositories < 100:
         failures.append(f"Expected at least 100 current repositories, found {current_repositories}")
     if len(rows) != current_repositories:
         failures.append(
-            f"Evidence-only coverage mismatch: {len(rows)} approved profiles for {current_repositories} current repositories"
+            f"Evidence-depth coverage mismatch: {len(rows)} approved profiles for {current_repositories} current repositories"
         )
     if non_approved:
-        failures.append(f"Found {non_approved} non-approved current evidence-only analyses")
+        failures.append(f"Found {non_approved} non-approved current evidence-depth analyses")
     if target is None:
-        failures.append(f"Target QA repository {TARGET_REPOSITORY} is missing from approved evidence-only profiles")
+        failures.append(f"Target QA repository {TARGET_REPOSITORY} is missing from approved evidence-depth profiles")
+    else:
+        components = target.get("architecture_components")
+        if not isinstance(components, list) or len(components) < 2:
+            failures.append("TradingAgents must expose at least two README-backed architecture components")
+        if not target.get("persistence_model"):
+            failures.append("TradingAgents persistence/recovery evidence was not extracted")
+        if not target.get("limitations"):
+            failures.append("TradingAgents explicit research-purpose/disclaimer limitation was not extracted")
 
     report = {
         "current_repositories": current_repositories,
-        "approved_evidence_only_profiles": len(rows),
-        "non_approved_evidence_only_profiles": non_approved,
+        "approved_evidence_depth_profiles": len(rows),
+        "non_approved_evidence_depth_profiles": non_approved,
         "semantic_failures": len(failures),
         "target_repository": target,
     }

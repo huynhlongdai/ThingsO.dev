@@ -59,7 +59,7 @@ def test_all_100_editorial_drafts_receive_valid_use_cases_without_relations() ->
         assert draft.relations == []
 
 
-def test_th107_publication_version_and_production_gate_are_locked() -> None:
+def test_th107_legacy_publication_is_preserved_only_for_manual_rollback() -> None:
     importer = (ROOT / "apps/worker/src/thingso_worker/manual_intelligence.py").read_text(
         encoding="utf-8"
     )
@@ -69,6 +69,9 @@ def test_th107_publication_version_and_production_gate_are_locked() -> None:
 
     assert 'PROMPT_VERSION = "manual-intelligence-v3-usecases-v1"' in importer
     assert "manual-intelligence-v3-usecases-v1" in workflow
-    assert 'test "$VERSIONED" -ge 100' in workflow
-    assert 'test "$USE_CASE_REPOS" -ge 100' in workflow
-    assert 'test "$ACTIVE_USE_CASES" -eq 36' in workflow
+    assert workflow.startswith("name: Legacy publish repository intelligence v3")
+    assert "workflow_dispatch:" in workflow
+    assert "workflow_run:" not in workflow
+    assert "push:" not in workflow
+    assert "Legacy publication warning" in workflow
+    assert "evidence-depth publication" in workflow

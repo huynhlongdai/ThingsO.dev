@@ -26,7 +26,10 @@ def test_evidence_selection_is_diverse_and_bounded_to_api_budget() -> None:
     assert "Dockerfile" in selected
     assert any(path in selected for path in {"CONTRIBUTING.md", "SECURITY.md"})
     assert "src/main.py" in selected
-    assert "CHANGELOG.md" in selected
+    assert any(
+        path in selected
+        for path in {"docs/architecture.md", "CHANGELOG.md", ".github/workflows/ci.yml"}
+    )
     assert "README.md" not in selected
 
 

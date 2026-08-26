@@ -162,8 +162,10 @@ test("home, discover and sitemap publish only reviewed use cases", async () => {
   assert.match(data, /ru\.source_type IN \('ai', 'editorial'\) AND ru\.reviewed = true/);
 });
 
-test("implementation blueprint is current-v3, evidence-backed and fail-closed", async () => {
+test("implementation blueprint is current-v3, evidence-backed, readiness-gated and fail-closed", async () => {
   const blueprint = await source("../app/repos/[owner]/[name]/blueprint/page.tsx");
+  const blueprintLayout = await source("../app/repos/[owner]/[name]/blueprint/layout.tsx");
+  const blueprintAction = await source("../components/repository-blueprint-action.tsx");
   const repoPage = await source("../app/repos/[owner]/[name]/page.tsx");
   const intelligenceData = await source("../lib/intelligence-data.ts");
 
@@ -181,8 +183,13 @@ test("implementation blueprint is current-v3, evidence-backed and fail-closed", 
   assert.match(blueprint, /ProvenanceBadge kind="editorial"/);
   assert.doesNotMatch(blueprint, /build_ideas|listBuildIdeas|getBuildIdea/);
 
-  assert.match(repoPage, /Build Blueprint →/);
-  assert.match(repoPage, /\/blueprint`/);
+  assert.match(repoPage, /RepositoryBlueprintAction/);
+  assert.match(blueprintAction, /Build Blueprint →/);
+  assert.match(blueprintAction, /Check blueprint readiness →/);
+  assert.match(blueprintAction, /\/blueprint`/);
+  assert.match(blueprintLayout, /getRepositoryReadiness/);
+  assert.match(blueprintLayout, /readiness\.stage === "blueprint-ready"/);
+  assert.match(blueprintLayout, /Verification backlog/);
   assert.match(intelligenceData, /a\.review_status = 'approved'/);
   assert.match(intelligenceData, /a\.source_snapshot_id = r\.current_snapshot_id/);
 });

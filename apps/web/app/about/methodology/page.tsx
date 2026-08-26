@@ -14,6 +14,13 @@ const healthDimensions = [
   ["Metadata", "Repository metadata completeness"],
 ] as const;
 
+const readinessStages = [
+  ["Evidence-safe", "Reviewed and safe to display, with Unknowns preserved."],
+  ["Analyzed", "Enough repository-specific evidence for meaningful technical analysis."],
+  ["Decision-ready", "Enough fit, trade-off, architecture and operating evidence for an adoption discussion."],
+  ["Blueprint-ready", "Enough implementation, integration, production and security evidence for a higher-confidence execution guide."],
+] as const;
+
 export default function MethodologyPage() {
   return (
     <main>
@@ -25,7 +32,7 @@ export default function MethodologyPage() {
               <p className="eyebrow">Methodology · trust model</p>
               <h1>Know what ThingsO knows—and what it does not.</h1>
               <p className="lede">
-                ThingsO separates verified source facts, deterministic project health, reviewed interpretation and explicit unknowns so a polished interface never hides uncertainty.
+                ThingsO separates verified source facts, deterministic project health, reviewed interpretation, readiness and explicit unknowns so a polished interface never hides uncertainty.
               </p>
               <div className="surface-hero__actions">
                 <Link className="button button--primary" href="/discover">Explore repositories</Link>
@@ -35,7 +42,7 @@ export default function MethodologyPage() {
             <div className="surface-hero__stats" aria-label="Methodology principles">
               <div><span>Source facts</span><strong>Observed</strong><small>GitHub/API or deterministic evidence</small></div>
               <div><span>Fit</span><strong>Contextual</strong><small>Depends on the job-to-be-done</small></div>
-              <div><span>Unknowns</span><strong>Visible</strong><small>Not replaced by filler or confidence theatre</small></div>
+              <div><span>Readiness</span><strong>Completeness</strong><small>Separate from claim confidence</small></div>
             </div>
           </div>
 
@@ -73,6 +80,28 @@ export default function MethodologyPage() {
                 <p>If the evidence pack cannot establish a claim, ThingsO shows the gap instead of fabricating completeness from a category template.</p>
                 <small>A visible question is safer than a false answer</small>
               </article>
+            </div>
+          </section>
+
+          <section className="readiness-methodology" aria-labelledby="readiness-heading">
+            <div className="readiness-methodology__intro">
+              <p className="eyebrow">Repository Readiness v1</p>
+              <h2 id="readiness-heading">Approved does not mean complete.</h2>
+              <p>An approved profile is evidence-safe to display. Readiness is a separate deterministic measure of whether that current profile is complete enough for analysis, adoption decisions or implementation planning.</p>
+            </div>
+            <div className="readiness-methodology__stages">
+              {readinessStages.map(([name, description], index) => (
+                <article key={name}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <h3>{name}</h3>
+                  <p>{description}</p>
+                </article>
+              ))}
+            </div>
+            <div className="readiness-methodology__distinction">
+              <p><strong>Claim confidence</strong><span>How strongly the published interpretation is supported.</span></p>
+              <b>≠</b>
+              <p><strong>Readiness coverage</strong><span>How many adoption/implementation evidence checks are actually established.</span></p>
             </div>
           </section>
 
@@ -124,7 +153,7 @@ export default function MethodologyPage() {
               <b>→</b>
               <div><span>04</span><strong>Review</strong><p>Schema, provenance, semantic and current-snapshot gates.</p></div>
               <b>→</b>
-              <div><span>05</span><strong>Publish</strong><p>Approved public-current profile with Unknowns intact.</p></div>
+              <div><span>05</span><strong>Publish</strong><p>Evidence-safe public-current profile with Unknowns intact.</p></div>
             </div>
           </section>
 
